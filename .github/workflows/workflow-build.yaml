@@ -30,19 +30,6 @@ jobs:
           command: test
           args: --package rcpsp --all-features
 
-      - name: Check workflow permissions
-        id: check_permissions
-        uses: scherermichael-oss/action-has-permission@1.0.6
-        with:
-          required-permission: write
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Run clippy action to produce annotations
-        uses: actions-rs/clippy-check@v1
-        if: steps.check_permissions.outputs.has-permission
-        with:
-          args: --package rcpsp --all-features -- -D warnings
-          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run clippy manually without annotations
         if: ${{ !steps.check_permissions.outputs.has-permission }}
         run: cargo clippy --package rcpsp --all-features -- -D warnings
@@ -55,6 +42,9 @@ jobs:
   Scheduler-Build:
     name: Build scheduler binary
     runs-on: ubuntu-latest
+
+    permissions:
+      pull-requests: write
 
     needs: Lib-Build
 
@@ -72,19 +62,6 @@ jobs:
           command: test
           args: --package scheduler --all-features
 
-      - name: Check workflow permissions
-        id: check_permissions
-        uses: scherermichael-oss/action-has-permission@1.0.6
-        with:
-          required-permission: write
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Run clippy action to produce annotations
-        uses: actions-rs/clippy-check@v1
-        if: steps.check_permissions.outputs.has-permission
-        with:
-          args: --package rcpsp --all-features -- -D warnings
-          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run clippy manually without annotations
         if: ${{ !steps.check_permissions.outputs.has-permission }}
         run: cargo clippy --package rcpsp --all-features -- -D warnings
