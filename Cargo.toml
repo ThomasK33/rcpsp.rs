@@ -1,0 +1,3 @@
+[workspace]
+members = ["rcpsp", "scheduler"]
+default-members = ["scheduler"]
