@@ -1,4 +1,4 @@
-name: GitHub Actions Demo
+name: Rcpsp.rs Build
 
 on:
   push:
@@ -12,6 +12,9 @@ jobs:
   Lib-Build:
     name: Build rcpsp library
     runs-on: ubuntu-latest
+
+    permissions:
+      pull-requests: write
 
     steps:
       - uses: actions/checkout@v2
@@ -27,10 +30,22 @@ jobs:
           command: test
           args: --package rcpsp --all-features
 
-      - uses: actions-rs/clippy-check@v1
+      - name: Check workflow permissions
+        id: check_permissions
+        uses: scherermichael-oss/action-has-permission@1.0.6
         with:
+          required-permission: write
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run clippy action to produce annotations
+        uses: actions-rs/clippy-check@v1
+        if: steps.check_permissions.outputs.has-permission
+        with:
+          args: --package rcpsp --all-features -- -D warnings
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --package rcpsp --all-features
+      - name: Run clippy manually without annotations
+        if: ${{ !steps.check_permissions.outputs.has-permission }}
+        run: cargo clippy --package rcpsp --all-features -- -D warnings
 
       - uses: actions-rs/cargo@v1
         with:
@@ -57,10 +72,22 @@ jobs:
           command: test
           args: --package scheduler --all-features
 
-      - uses: actions-rs/clippy-check@v1
+      - name: Check workflow permissions
+        id: check_permissions
+        uses: scherermichael-oss/action-has-permission@1.0.6
         with:
+          required-permission: write
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run clippy action to produce annotations
+        uses: actions-rs/clippy-check@v1
+        if: steps.check_permissions.outputs.has-permission
+        with:
+          args: --package rcpsp --all-features -- -D warnings
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --package scheduler --all-features
+      - name: Run clippy manually without annotations
+        if: ${{ !steps.check_permissions.outputs.has-permission }}
+        run: cargo clippy --package rcpsp --all-features -- -D warnings
 
       - uses: actions-rs/cargo@v1
         with:
