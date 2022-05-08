@@ -3,24 +3,59 @@
 
 use chumsky::{prelude::*, Parser};
 use structs::PspLibProblem;
+use thiserror::Error;
 
 pub mod structs;
 
-pub fn parse_psp_lib(content: &str) -> Result<PspLibProblem, Vec<Simple<char>>> {
-    let (file_with_basedata, initial_rng) = file_metadata_parser().parse(content)?;
+#[derive(Debug, Error)]
+pub enum PspLibParseError {
+    #[error("ParseError occurred")]
+    ParseError(Vec<Simple<char>>),
+    #[error("Project info incomplete")]
+    ProjectInfoIncomplete,
+}
+
+pub fn parse_psp_lib(content: &str) -> Result<PspLibProblem, PspLibParseError> {
+    let file_metadata_parser = crate::file_metadata_parser();
+    let metadata_parser = crate::metadata_parser();
+    let project_info_parser = crate::project_info_parser();
+    let parser = file_metadata_parser
+        .then(metadata_parser)
+        .then(project_info_parser);
+
+    let (((file_with_basedata, initial_rng), metadata), project_info) = parser
+        .parse(content)
+        .map_err(PspLibParseError::ParseError)?;
+
+    let project_info: Vec<structs::PspLibProjectInformation> = {
+        let mut info = vec![];
+
+        for project_info in project_info {
+            info.push(structs::PspLibProjectInformation {
+                number: project_info[0],
+                jobs: project_info[1],
+                relative_date: project_info[2],
+                due_date: project_info[3],
+                tard_cost: project_info[4],
+                mpm_time: project_info[5],
+            });
+        }
+
+        info
+    };
 
     Ok(PspLibProblem {
         file_with_basedata,
         initial_rng,
-        projects: 0,
-        jobs: 0,
-        horizon: 0,
+        projects: metadata[0],
+        jobs: metadata[1],
+        horizon: metadata[2],
         resources: structs::PspLibProblemResources {
-            renewable: 0,
-            nonrenewable: 0,
-            doubly_constrained: 0,
+            renewable: metadata[3],
+            nonrenewable: metadata[4],
+            doubly_constrained: metadata[5],
         },
-        project_info: vec![],
+        project_info,
         precedence_relations: vec![],
         request_durations: vec![],
         resource_availabilities: structs::PspLibResourceAvailability {
@@ -147,9 +182,36 @@ pub(crate) fn metadata_parser() -> impl Parser<char, Vec<usize>, Error = Simple<
         .collect()
 }
 
+pub(crate) fn project_info_parser() -> impl Parser<char, Vec<Vec<u8>>, Error = Simple<char>> {
+    let separator = filter(|c: &char| *c == '*')
+        .repeated()
+        .ignored()
+        .padded()
+        .labelled("separator");
+
+    let info = text::int(10)
+        .from_str::<u8>()
+        .unwrapped()
+        .then_ignore(just(' ').repeated())
+        .repeated()
+        .at_least(6);
+
+    separator
+        .then_ignore(just("PROJECT INFORMATION:"))
+        .padded()
+        .then_ignore(just("pronr.  #jobs rel.date duedate tardcost  MPM-Time"))
+        .padded()
+        .ignore_then(
+            text::whitespace()
+                .ignore_then(info)
+                .then_ignore(text::newline())
+                .repeated(),
+        )
+}
+
 #[cfg(test)]
 mod tests {
-    use chumsky::{error::SimpleReason, Parser};
+    use chumsky::Parser;
 
     use crate::parse_psp_lib;
 
@@ -179,14 +241,37 @@ mod tests {
     }
 
     #[test]
-    fn full_parsing() {
+    fn project_info_parser() {
         let file_metadata_parser = crate::file_metadata_parser();
         let metadata_parser = crate::metadata_parser();
-        let metadata_parser = file_metadata_parser.then(metadata_parser);
+        let project_info_parser = crate::project_info_parser();
+        let project_info_parser = file_metadata_parser
+            .ignore_then(metadata_parser)
+            .ignore_then(project_info_parser);
 
-        let meta = metadata_parser.parse(TEST_FILE);
+        let meta = project_info_parser.parse(TEST_FILE);
         dbg!(&meta);
         assert!(meta.is_ok());
+    }
+
+    #[test]
+    fn full_raw_parsing() {
+        let file_metadata_parser = crate::file_metadata_parser();
+        let metadata_parser = crate::metadata_parser();
+        let parser = file_metadata_parser.then(metadata_parser);
+        let parser = parser.then(crate::project_info_parser());
+
+        let meta = parser.parse(TEST_FILE);
+        dbg!(&meta);
+        assert!(meta.is_ok());
+    }
+
+    #[test]
+    fn parse_psp_lib_test() {
+        let output = parse_psp_lib(TEST_FILE);
+
+        dbg!(&output);
+        assert!(output.is_ok());
     }
 
     #[test]
@@ -196,10 +281,5 @@ mod tests {
         let output = parse_psp_lib(content);
 
         assert!(output.is_err());
-
-        assert_eq!(
-            output.unwrap_err().first().unwrap().reason(),
-            &SimpleReason::Unexpected
-        );
     }
 }

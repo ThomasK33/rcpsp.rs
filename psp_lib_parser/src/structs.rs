@@ -4,9 +4,9 @@ pub struct PspLibProblem {
     pub file_with_basedata: String,
     pub initial_rng: usize,
     // metadata
-    pub projects: u8,
-    pub jobs: u8,
-    pub horizon: u8,
+    pub projects: usize,
+    pub jobs: usize,
+    pub horizon: usize,
     pub resources: PspLibProblemResources,
     // project info
     pub project_info: Vec<PspLibProjectInformation>,
@@ -20,9 +20,9 @@ pub struct PspLibProblem {
 
 #[derive(Debug, PartialEq)]
 pub struct PspLibProblemResources {
-    pub renewable: u8,
-    pub nonrenewable: u8,
-    pub doubly_constrained: u8,
+    pub renewable: usize,
+    pub nonrenewable: usize,
+    pub doubly_constrained: usize,
 }
 
 #[derive(Debug, PartialEq)]
