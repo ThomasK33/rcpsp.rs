@@ -104,68 +104,29 @@ pub(crate) fn metadata_parser() -> impl Parser<char, Vec<usize>, Error = Simple<
     let separator = filter(|c: &char| *c == '*')
         .repeated()
         .ignored()
-        .padded()
         .labelled("separator");
 
-    let projects = just("projects")
-        .padded()
-        .then_ignore(just(':'))
-        .padded()
-        .ignore_then(text::int(10))
-        .from_str::<usize>()
-        .unwrapped()
-        .labelled("projects");
+    let descriptor = |id| {
+        just(id)
+            .padded()
+            .then_ignore(just(':'))
+            .padded()
+            .ignore_then(text::int(10))
+            .then_ignore(just(' ').repeated().then_ignore(text::ident()).or_not())
+            .from_str::<usize>()
+            .unwrapped()
+            .labelled(id)
+    };
 
-    let jobs = just("jobs (incl. supersource/sink )")
-        .padded()
-        .then_ignore(just(':'))
-        .padded()
-        .ignore_then(text::int(10))
-        .from_str::<usize>()
-        .unwrapped()
-        .labelled("jobs");
-
-    let horizon = just("horizon")
-        .padded()
-        .then_ignore(just(':'))
-        .padded()
-        .ignore_then(text::int(10))
-        .from_str::<usize>()
-        .unwrapped()
-        .labelled("horizon");
-
-    let renewable = just("- renewable")
-        .padded()
-        .then_ignore(just(':'))
-        .padded()
-        .ignore_then(text::int(10))
-        .padded()
-        .then_ignore(text::ident())
-        .from_str::<usize>()
-        .unwrapped()
-        .labelled("renewable");
-    let nonrenewable = just("- nonrenewable")
-        .padded()
-        .then_ignore(just(':'))
-        .padded()
-        .ignore_then(text::int(10))
-        .padded()
-        .then_ignore(text::ident())
-        .from_str::<usize>()
-        .unwrapped()
-        .labelled("nonrenewable");
-    let doubly_constrained = just("- doubly constrained")
-        .padded()
-        .then_ignore(just(':'))
-        .padded()
-        .ignore_then(text::int(10))
-        .padded()
-        .then_ignore(text::ident())
-        .from_str::<usize>()
-        .unwrapped()
-        .labelled("doubly constrained");
+    let projects = descriptor("projects");
+    let jobs = descriptor("jobs (incl. supersource/sink )");
+    let horizon = descriptor("horizon");
+    let renewable = descriptor("- renewable");
+    let nonrenewable = descriptor("- nonrenewable");
+    let doubly_constrained = descriptor("- doubly constrained");
 
     separator
+        .padded()
         .ignore_then(projects)
         .padded()
         .chain(jobs)
