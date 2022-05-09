@@ -10,7 +10,11 @@ on:
 
 jobs:
   Lib-Build:
-    name: Build rcpsp library
+    strategy:
+      matrix:
+        lib: ["rcpsp", "psp_lib_parser"]
+
+    name: Build ${{ matrix.lib }} library
     runs-on: ubuntu-latest
 
     permissions:
@@ -28,16 +32,16 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --package rcpsp --all-features
+          args: --package ${{ matrix.lib }} --all-features
 
-      - name: Run clippy manually without annotations
+      - name: Run clippy
         if: ${{ !steps.check_permissions.outputs.has-permission }}
-        run: cargo clippy --package rcpsp --all-features -- -D warnings
+        run: cargo clippy --package ${{ matrix.lib }} --all-features -- -D warnings
 
       - uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --package rcpsp --all-features --release
+          args: --package ${{ matrix.lib }} --all-features --release
 
   Scheduler-Build:
     name: Build scheduler binary
@@ -62,9 +66,9 @@ jobs:
           command: test
           args: --package scheduler --all-features
 
-      - name: Run clippy manually without annotations
+      - name: Run clippy
         if: ${{ !steps.check_permissions.outputs.has-permission }}
-        run: cargo clippy --package rcpsp --all-features -- -D warnings
+        run: cargo clippy --package scheduler --all-features -- -D warnings
 
       - uses: actions-rs/cargo@v1
         with:

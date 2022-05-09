@@ -3,8 +3,10 @@
 	"cSpell.words": [
 		"basedata",
 		"chumsky",
+		"clippy",
 		"graphviz",
 		"RCPSP",
+		"rustfmt",
 		"tard",
 		"thiserror"
 	]
