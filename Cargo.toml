@@ -1,2 +1,3 @@
 [workspace]
 members = ["rcpsp", "scheduler", "psp_lib_parser"]
+default-members = ["scheduler"]
