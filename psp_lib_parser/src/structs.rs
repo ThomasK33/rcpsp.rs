@@ -47,6 +47,7 @@ pub struct PspLibPrecedenceRelation {
 pub struct PspLibRequestDuration {
     pub job_number: u8,
     pub mode: u8,
+    pub duration: u8,
     pub r1: u8,
     pub r2: u8,
     pub r3: u8,

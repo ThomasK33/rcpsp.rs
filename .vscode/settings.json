@@ -3,6 +3,7 @@
 	"cSpell.words": [
 		"basedata",
 		"chumsky",
-		"tard"
+		"tard",
+		"thiserror"
 	]
 }

@@ -1,2 +1,2 @@
 [workspace]
-members = ["rcpsp", "scheduler", "generator", "shared_types", "psp_lib_parser"]
+members = ["rcpsp", "scheduler", "psp_lib_parser"]
