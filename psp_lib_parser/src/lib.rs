@@ -27,7 +27,9 @@ pub fn parse_psp_lib(content: &str) -> Result<PspLibProblem, PspLibParseError> {
         .then(project_info_parser)
         .then(precedence_relation_parser)
         .then(requests_duration_parser)
-        .then(resource_availability_parser);
+        .then(resource_availability_parser)
+		.then_ignore(separator_parser())
+        .then_ignore(end());
 
     let (
         (
