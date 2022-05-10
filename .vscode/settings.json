@@ -10,5 +10,6 @@
 		"rustfmt",
 		"tard",
 		"thiserror"
-	]
+	],
+	// "testExplorer.useNativeTesting": true
 }
