@@ -1,6 +1,6 @@
 use anyhow::Result;
 use log::{debug, info, trace};
-use psp_lib_parser::{parse_psp_lib, structs::PspLibRequestDuration};
+use psp_lib_parser::{parse_psp_lib, PspLibRequestDuration};
 use std::{
     collections::{HashMap, HashSet},
     fs,
@@ -37,20 +37,20 @@ fn write_dot_file(mut file: fs::File, psp: psp_lib_parser::structs::PspLibProble
 
     let title = psp.file_with_basedata.replace('.', "_");
 
-    file.write(b"digraph ")?;
-    file.write(title.as_bytes())?;
-    file.write(b" {\n")?;
-    file.write(b"\trankdir=LR;\n")?;
-    file.write(b"\tconcentrate=true;\n\n")?;
+    file.write_all(b"digraph ")?;
+    file.write_all(title.as_bytes())?;
+    file.write_all(b" {\n")?;
+    file.write_all(b"\trankdir=LR;\n")?;
+    file.write_all(b"\tconcentrate=true;\n\n")?;
 
     let mut successor_map = HashMap::new();
 
     for (k, v) in durations {
         let duration = v.duration;
-        file.write(format!("\t{k} [label=\"{k} ({duration})\"]\n").as_bytes())?;
+        file.write_all(format!("\t{k} [label=\"{k} ({duration})\"]\n").as_bytes())?;
     }
 
-    file.write(b"\n")?;
+    file.write_all(b"\n")?;
 
     // Write nodes
     for node in psp.precedence_relations {
@@ -58,10 +58,10 @@ fn write_dot_file(mut file: fs::File, psp: psp_lib_parser::structs::PspLibProble
             continue;
         }
 
-        file.write(b"\t")?;
-        file.write(node.job_number.to_string().as_bytes())?;
-        file.write(b" -> { ")?;
-        file.write(
+        file.write_all(b"\t")?;
+        file.write_all(node.job_number.to_string().as_bytes())?;
+        file.write_all(b" -> { ")?;
+        file.write_all(
             node.successors
                 .iter()
                 .map(|idx| format!("{}", *idx,))
@@ -69,12 +69,12 @@ fn write_dot_file(mut file: fs::File, psp: psp_lib_parser::structs::PspLibProble
                 .join(" ")
                 .as_bytes(),
         )?;
-        file.write(b" };\n")?;
+        file.write_all(b" };\n")?;
 
         successor_map.insert(node.job_number, node.successors);
     }
 
-    file.write(b"\n")?;
+    file.write_all(b"\n")?;
 
     let mut prerequisite_map: HashMap<u8, Vec<u8>> = HashMap::new();
 
@@ -110,7 +110,7 @@ fn write_dot_file(mut file: fs::File, psp: psp_lib_parser::structs::PspLibProble
                 .iter()
                 .map(|current_job| {
                     successor_map
-                        .remove(&current_job)
+                        .remove(current_job)
                         .unwrap_or_default()
                         .into_iter()
                         // Get all pre requisites and check if they have already been visited
@@ -130,25 +130,25 @@ fn write_dot_file(mut file: fs::File, psp: psp_lib_parser::structs::PspLibProble
 
             // Replace same_level with next successors
             same_rank = successors.into_iter().flatten().collect::<Vec<u8>>();
-            same_rank.sort();
+            same_rank.sort_unstable();
             same_rank.dedup();
         }
     }
 
     for rank in ranks.into_iter() {
-        file.write(b"\t{ rank=same; ")?;
-        file.write(
+        file.write_all(b"\t{ rank=same; ")?;
+        file.write_all(
             rank.into_iter()
                 .map(|idx| format!("{}", idx))
                 .collect::<Vec<String>>()
                 .join(" ")
                 .as_bytes(),
         )?;
-        file.write(b" }\n")?;
+        file.write_all(b" }\n")?;
     }
 
     // Close graph
-    file.write(b"\n}\n")?;
+    file.write_all(b"\n}\n")?;
     file.flush()?;
 
     Ok(())

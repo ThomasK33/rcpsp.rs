@@ -13,7 +13,7 @@
 		"eamodio.gitlens",
 		"joaompinto.vscode-graphviz",
 		"swellaby.vscode-rust-test-adapter",
-		"matklad.rust-analyzer",
+		"rust-lang.rust-analyzer",
 		"hbenl.vscode-test-explorer",
 		"wayou.vscode-todo-highlight",
 		"gruntfuggly.todo-tree",
