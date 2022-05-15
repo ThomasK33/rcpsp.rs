@@ -6,6 +6,7 @@
 		"clippy",
 		"dedup",
 		"graphviz",
+		"rankdir",
 		"RCPSP",
 		"rustfmt",
 		"tard",
