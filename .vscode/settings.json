@@ -6,9 +6,13 @@
 		"clippy",
 		"dedup",
 		"graphviz",
+		"makespan",
+		"misb",
 		"rankdir",
 		"RCPSP",
 		"rustfmt",
+		"shlf",
+		"swlf",
 		"tard",
 		"thiserror"
 	],

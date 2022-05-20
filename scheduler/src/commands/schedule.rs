@@ -1,6 +1,7 @@
 use anyhow::Result;
-use std::path::PathBuf;
 
-pub fn schedule(_input_path: PathBuf) -> Result<()> {
+use crate::Schedule;
+
+pub fn schedule(_schedule: Schedule) -> Result<()> {
     todo!("Implement scheduler")
 }
