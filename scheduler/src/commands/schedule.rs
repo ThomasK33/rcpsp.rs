@@ -43,22 +43,39 @@ pub fn schedule(_schedule: Schedule) -> Result<()> {
             }).collect()
         }).collect();
     //============ End Definition of Problem ============
+
+
     let delta=rand::thread_rng().gen_range(3..5);
     let mut Nred: Vec<(usize, usize)> = Vec::new();
     for swap_range in 1..delta+1{
         let mut temp : Vec<(usize, usize)>=(0 as usize..(N-swap_range) as usize).map(|i| (i,i+swap_range as usize)).collect();
         Nred.append(&mut temp);
     }
-
+    let tabuList_len=100;
 
     let InitialSolutions :Vec<Vec<i32>> = vec![(0..N).collect()];
     //because Definition is like that, but there are more initials (4.1.)
-    Algorithm1(&Nred, &InitialSolutions[0], &E);
+
+    {
+        let mut tabuList:Vec<(usize,usize)>=vec![(0,0); tabuList_len];
+        let mut tabuCache:Vec<Vec<bool>> = vec![vec![false;N as usize];N as usize];
+        let mut writeIndex : usize = 0;
+        {
+            let Nfeasable: Vec<(usize, usize)> = generate_Nred(&Nred, &InitialSolutions[0], &E);
+
+            if Nfeasable[0]!=(0,0) && !check_STL(Nfeasable[0],&tabuCache){
+                addTo_STL(Nfeasable[0], &mut tabuCache, &mut tabuList, &mut writeIndex);
+            }
+        }
+    }
+
+
 
     Ok(())
 }
 
-fn Algorithm1(Nred: &Vec<(usize, usize)>, sched: &Vec<i32>, edges:&Vec<Vec<bool>>) -> Vec<(usize, usize)> {
+//Algorithm1
+fn generate_Nred(Nred: &Vec<(usize, usize)>, sched: &Vec<i32>, edges:&Vec<Vec<bool>>) -> Vec<(usize, usize)> {
     let mut moves: Vec<(usize, usize)>=Nred.clone();
     let moves_len=moves.len();
     //*
@@ -117,17 +134,17 @@ fn Algorithm1(Nred: &Vec<(usize, usize)>, sched: &Vec<i32>, edges:&Vec<Vec<bool>
     moves=moves.into_iter().filter(|(u,v)| {
         for x in u+1 .. v+1{
             if edges
-                [sched[u.clone()] as usize]
+                [sched[*u] as usize]
                 [sched[x] as usize]
             {return false}
         }
         true
     }).collect();
     moves=moves.into_iter().filter(|(u,v)| {
-        for x in u.clone() .. v.clone(){
+        for x in *u .. *v{
             if edges
                 [sched[x] as usize]
-                [sched[v.clone()] as usize]
+                [sched[*v] as usize]
             {return false}
         }
         true
@@ -135,4 +152,19 @@ fn Algorithm1(Nred: &Vec<(usize, usize)>, sched: &Vec<i32>, edges:&Vec<Vec<bool>
     //let t = sched.get(5);
     // */
     return moves
+}
+
+//Algorithm2
+fn check_STL((u,v):(usize, usize),tabuCache:&Vec<Vec<bool>>)->bool{
+    tabuCache[u][v].clone()
+}
+
+//Algorithm3
+fn addTo_STL((u,v):(usize, usize), tabuCache:&mut Vec<Vec<bool>>, tabuList:&mut Vec<(usize,usize)>, writeIndex: &mut usize){
+    let (uold, vold) = tabuList[*writeIndex].clone();
+    tabuCache[uold][vold] = false;
+    tabuList[*writeIndex]= (u, v).clone();
+    tabuCache[u][v] = true;
+    *writeIndex = (*writeIndex + 1) % tabuList.len();
+
 }
