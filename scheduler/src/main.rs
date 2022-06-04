@@ -93,12 +93,6 @@ pub enum Mode {
     Advanced,
 }
 
-impl Default for Mode {
-    fn default() -> Self {
-        Self::Simple
-    }
-}
-
 fn main() {
     let args: App = App::parse();
 

@@ -7,3 +7,6 @@ authors = ["Thomas Kosiewski <thoma471@googlemail.com>"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+petgraph = "0.6.2"
+psp_lib_parser = { path = "../psp_lib_parser" }
+rand = "0.8.5"

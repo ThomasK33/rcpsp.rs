@@ -88,7 +88,7 @@ fn write_dot_file(mut file: fs::File, psp: psp_lib_parser::structs::PspLibProble
         }
     }
 
-    // Calculate same ranks
+    // Calculate same execution ranks
     // ranks = dependency ranks
     let mut ranks: Vec<Vec<u8>> = vec![];
     {
