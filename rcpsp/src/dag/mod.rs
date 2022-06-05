@@ -34,6 +34,13 @@ impl<'a> DAG<'a> {
         Self { graph, psp }
     }
 
+    /// Compute the upper bound of execution time by accumulating all durations
+    pub fn compute_upper_bound(&self) -> usize {
+        self.psp
+            .request_durations
+            .iter()
+            .fold(0, |acc, duration| acc + (duration.duration as usize))
+    }
     /// Find the lower bound of execution time, based on the longest time in the graph
     pub fn compute_lower_bound(&self, reversed: bool) -> Option<(u8, Vec<NodeIndex>)> {
         let from = if !reversed {
@@ -144,5 +151,78 @@ impl<'a> DAG<'a> {
         }
 
         ranks
+    }
+
+    pub fn compute_reduced_neighborhood_moves(&self, swap_range: usize) -> Vec<(u8, u8)> {
+        let mut initial_solution = vec![1 as u8];
+        initial_solution.append(
+            &mut self
+                .compute_job_execution_ranks()
+                .into_iter()
+                .flatten()
+                .collect(),
+        );
+
+        // Reduced neighborhood to initial solution depends on the neighborhood size
+        // parameter (swap range) and is an upper bound for move generation
+
+        let mut windows = initial_solution.windows(swap_range).peekable();
+
+        let mut moves = vec![];
+
+        loop {
+            if let Some(window) = windows.next() {
+                // Map each window to moves
+                if let Some(first) = window.first() {
+                    let mut neighbors: Vec<(u8, u8)> = window
+                        .iter()
+                        .skip(1)
+                        .map(|neighbor| (*first, *neighbor))
+                        .collect();
+
+                    moves.append(&mut neighbors);
+                }
+
+                // Special case for last window
+                if windows.peek().is_none() {
+                    // Create smaller sub-windows with less elements than swap_range yet the
+                    // possibility to yield valid moves
+
+                    let mut last_window = window.to_vec();
+                    last_window.append(&mut vec![0; swap_range as usize]);
+
+                    for window in last_window.windows(swap_range) {
+                        if let Some(first) = window.first() {
+                            let mut neighbors: Vec<(u8, u8)> = window
+                                .iter()
+                                .skip(1)
+                                .filter(|neighbor| **neighbor != 0)
+                                .map(|neighbor| (*first, *neighbor))
+                                .collect();
+
+                            moves.append(&mut neighbors);
+                        }
+                    }
+                }
+            } else {
+                break;
+            }
+        }
+
+        // Filter out infeasible moves, i.e. moves that violate a precedence relation
+        moves
+            .into_iter()
+            .filter(|(u, x)| {
+                algo::all_simple_paths::<Vec<_>, _>(
+                    &self.graph,
+                    NodeIndex::from((*u) as u32),
+                    NodeIndex::from((*x) as u32),
+                    0,
+                    None,
+                )
+                .count()
+                    == 0
+            })
+            .collect()
     }
 }

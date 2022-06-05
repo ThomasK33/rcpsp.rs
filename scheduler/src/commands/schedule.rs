@@ -14,7 +14,11 @@ pub fn schedule(schedule: Schedule) -> Result<()> {
         let psp = parse_psp_lib(contents.as_str())?;
         trace!("parsed psp: {psp:#?}");
 
-        rcpsp::schedulers::simple::simple_schedule(psp, schedule.tabu_list_size);
+        rcpsp::schedulers::simple::simple_schedule(
+            psp,
+            schedule.tabu_list_size,
+            schedule.swap_range,
+        );
     }
 
     Ok(())
