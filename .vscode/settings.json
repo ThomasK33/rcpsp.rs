@@ -9,6 +9,7 @@
 		"graphviz",
 		"makespan",
 		"misb",
+		"peekable",
 		"petgraph",
 		"rankdir",
 		"RCPSP",

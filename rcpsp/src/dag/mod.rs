@@ -9,6 +9,7 @@ use psp_lib_parser::structs::PspLibProblem;
 pub struct DAG<'a> {
     pub graph: DiGraph<u8, u8>,
     pub psp: &'a PspLibProblem,
+    nodes: HashMap<u8, NodeIndex>,
 }
 
 impl<'a> DAG<'a> {
@@ -31,7 +32,7 @@ impl<'a> DAG<'a> {
             }
         }
 
-        Self { graph, psp }
+        Self { graph, psp, nodes }
     }
 
     /// Compute the upper bound of execution time by accumulating all durations
@@ -83,6 +84,9 @@ impl<'a> DAG<'a> {
         .and_then(|path| Some(path.1))
     }
 
+    /// Returns vector of job number execution ranks.
+    ///
+    /// Warning: those ranks are not node ids but job ids
     pub fn compute_job_execution_ranks(&self) -> Vec<Vec<u8>> {
         let mut successor_map = {
             let mut map = HashMap::new();
@@ -154,14 +158,11 @@ impl<'a> DAG<'a> {
     }
 
     pub fn compute_reduced_neighborhood_moves(&self, swap_range: usize) -> Vec<(u8, u8)> {
-        let mut initial_solution = vec![1 as u8];
-        initial_solution.append(
-            &mut self
-                .compute_job_execution_ranks()
-                .into_iter()
-                .flatten()
-                .collect(),
-        );
+        let initial_solution: Vec<u8> = self
+            .compute_job_execution_ranks()
+            .into_iter()
+            .flatten()
+            .collect();
 
         // Reduced neighborhood to initial solution depends on the neighborhood size
         // parameter (swap range) and is an upper bound for move generation
@@ -212,16 +213,42 @@ impl<'a> DAG<'a> {
         // Filter out infeasible moves, i.e. moves that violate a precedence relation
         moves
             .into_iter()
-            .filter(|(u, x)| {
+            .filter(|(u, v)| {
+                // Check paths not existing from u to v
                 algo::all_simple_paths::<Vec<_>, _>(
                     &self.graph,
-                    NodeIndex::from((*u) as u32),
-                    NodeIndex::from((*x) as u32),
+                    self.nodes[u],
+                    self.nodes[v],
                     0,
                     None,
                 )
                 .count()
                     == 0
+                    && {
+                        // and check paths not existing from u, u+1, u+2, ..., b-1
+                        let index_u = initial_solution.iter().position(|&node| node == *u);
+                        let index_v = initial_solution.iter().position(|&node| node == *v);
+
+                        if let Some(index_u) = index_u {
+                            if let Some(index_v) = index_v {
+                                let nodes_between = &initial_solution[index_u..index_v];
+
+                                return nodes_between.into_iter().all(|node| {
+                                    algo::all_simple_paths::<Vec<_>, _>(
+                                        &self.graph,
+                                        self.nodes[node],
+                                        self.nodes[v],
+                                        0,
+                                        None,
+                                    )
+                                    .count()
+                                        == 0
+                                });
+                            }
+                        }
+
+                        true
+                    }
             })
             .collect()
     }
