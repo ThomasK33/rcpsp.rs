@@ -81,7 +81,7 @@ impl<'a> DAG<'a> {
         )
         .map(|path| (path.len(), path))
         .max_by_key(|path| path.0)
-        .and_then(|path| Some(path.1))
+        .map(|(_, path)| path)
     }
 
     /// Returns vector of job number execution ranks.
@@ -100,7 +100,7 @@ impl<'a> DAG<'a> {
             let mut map: HashMap<u8, Vec<u8>> = HashMap::new();
             for (job_number, successors) in successor_map.iter() {
                 for successor in successors {
-                    if let Some(requirements) = map.get_mut(&successor) {
+                    if let Some(requirements) = map.get_mut(successor) {
                         requirements.push(*job_number);
                     } else {
                         map.insert(*successor, vec![*job_number]);
@@ -169,42 +169,38 @@ impl<'a> DAG<'a> {
 
         let mut moves = vec![];
 
-        loop {
-            if let Some(window) = windows.next() {
-                // Map each window to moves
-                if let Some(first) = window.first() {
-                    let mut neighbors: Vec<(u8, u8)> = window
-                        .iter()
-                        .skip(1)
-                        .map(|neighbor| (*first.min(neighbor), *neighbor.max(first)))
-                        .collect();
+        while let Some(window) = windows.next() {
+            // Map each window to moves
+            if let Some(first) = window.first() {
+                let mut neighbors: Vec<(u8, u8)> = window
+                    .iter()
+                    .skip(1)
+                    .map(|neighbor| (*first.min(neighbor), *neighbor.max(first)))
+                    .collect();
 
-                    moves.append(&mut neighbors);
-                }
+                moves.append(&mut neighbors);
+            }
 
-                // Special case for last window
-                if windows.peek().is_none() {
-                    // Create smaller sub-windows with less elements than swap_range yet the
-                    // possibility to yield valid moves
+            // Special case for last window
+            if windows.peek().is_none() {
+                // Create smaller sub-windows with less elements than swap_range yet the
+                // possibility to yield valid moves
 
-                    let mut last_window = window.to_vec();
-                    last_window.append(&mut vec![0; swap_range as usize]);
+                let mut last_window = window.to_vec();
+                last_window.append(&mut vec![0; swap_range as usize]);
 
-                    for window in last_window.windows(swap_range) {
-                        if let Some(first) = window.first() {
-                            let mut neighbors: Vec<(u8, u8)> = window
-                                .iter()
-                                .skip(1)
-                                .filter(|neighbor| **neighbor != 0)
-                                .map(|neighbor| (*first.min(neighbor), *neighbor.max(first)))
-                                .collect();
+                for window in last_window.windows(swap_range) {
+                    if let Some(first) = window.first() {
+                        let mut neighbors: Vec<(u8, u8)> = window
+                            .iter()
+                            .skip(1)
+                            .filter(|neighbor| **neighbor != 0)
+                            .map(|neighbor| (*first.min(neighbor), *neighbor.max(first)))
+                            .collect();
 
-                            moves.append(&mut neighbors);
-                        }
+                        moves.append(&mut neighbors);
                     }
                 }
-            } else {
-                break;
             }
         }
 
@@ -224,7 +220,7 @@ impl<'a> DAG<'a> {
 
                         let nodes_between = &schedule[start_index..end_index];
 
-                        return nodes_between.into_iter().all(|node| {
+                        return nodes_between.iter().all(|node| {
                             algo::all_simple_paths::<Vec<_>, _>(
                                 &self.graph,
                                 self.nodes[node],

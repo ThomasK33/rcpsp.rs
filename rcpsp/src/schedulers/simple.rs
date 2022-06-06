@@ -10,7 +10,7 @@ pub fn simple_schedule(psp: PspLibProblem, tabu_list_size: u32, swap_range: u32)
     // Compute initial solution
     let job_execution_ranks = dag.compute_job_execution_ranks();
 
-    let mut initial_solution = vec![1 as u8];
+    let mut initial_solution = vec![1_u8];
     initial_solution.append(&mut job_execution_ranks.into_iter().flatten().collect());
 
     println!("initial_solution: {initial_solution:?}");
