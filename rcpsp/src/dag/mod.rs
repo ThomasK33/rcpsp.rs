@@ -157,17 +157,15 @@ impl<'a> DAG<'a> {
         ranks
     }
 
-    pub fn compute_reduced_neighborhood_moves(&self, swap_range: usize) -> Vec<(u8, u8)> {
-        let initial_solution: Vec<u8> = self
-            .compute_job_execution_ranks()
-            .into_iter()
-            .flatten()
-            .collect();
-
+    pub fn compute_reduced_neighborhood_moves(
+        &self,
+        schedule: Vec<u8>,
+        swap_range: usize,
+    ) -> Vec<(u8, u8)> {
         // Reduced neighborhood to initial solution depends on the neighborhood size
         // parameter (swap range) and is an upper bound for move generation
 
-        let mut windows = initial_solution.windows(swap_range).peekable();
+        let mut windows = schedule.windows(swap_range).peekable();
 
         let mut moves = vec![];
 
@@ -178,7 +176,7 @@ impl<'a> DAG<'a> {
                     let mut neighbors: Vec<(u8, u8)> = window
                         .iter()
                         .skip(1)
-                        .map(|neighbor| (*first, *neighbor))
+                        .map(|neighbor| (*first.min(neighbor), *neighbor.max(first)))
                         .collect();
 
                     moves.append(&mut neighbors);
@@ -198,7 +196,7 @@ impl<'a> DAG<'a> {
                                 .iter()
                                 .skip(1)
                                 .filter(|neighbor| **neighbor != 0)
-                                .map(|neighbor| (*first, *neighbor))
+                                .map(|neighbor| (*first.min(neighbor), *neighbor.max(first)))
                                 .collect();
 
                             moves.append(&mut neighbors);
@@ -214,41 +212,33 @@ impl<'a> DAG<'a> {
         moves
             .into_iter()
             .filter(|(u, v)| {
-                // Check paths not existing from u to v
-                algo::all_simple_paths::<Vec<_>, _>(
-                    &self.graph,
-                    self.nodes[u],
-                    self.nodes[v],
-                    0,
-                    None,
-                )
-                .count()
-                    == 0
-                    && {
-                        // and check paths not existing from u, u+1, u+2, ..., b-1
-                        let index_u = initial_solution.iter().position(|&node| node == *u);
-                        let index_v = initial_solution.iter().position(|&node| node == *v);
+                // Check paths not existing from u to v and check paths not existing from u,
+                // u+1, u+2, ..., v-1 to v
+                let index_u = schedule.iter().position(|&node| node == *u);
+                let index_v = schedule.iter().position(|&node| node == *v);
 
-                        if let Some(index_u) = index_u {
-                            if let Some(index_v) = index_v {
-                                let nodes_between = &initial_solution[index_u..index_v];
+                if let Some(index_u) = index_u {
+                    if let Some(index_v) = index_v {
+                        let start_index = index_u.min(index_v);
+                        let end_index = index_v.max(index_u);
 
-                                return nodes_between.into_iter().all(|node| {
-                                    algo::all_simple_paths::<Vec<_>, _>(
-                                        &self.graph,
-                                        self.nodes[node],
-                                        self.nodes[v],
-                                        0,
-                                        None,
-                                    )
-                                    .count()
-                                        == 0
-                                });
-                            }
-                        }
+                        let nodes_between = &schedule[start_index..end_index];
 
-                        true
+                        return nodes_between.into_iter().all(|node| {
+                            algo::all_simple_paths::<Vec<_>, _>(
+                                &self.graph,
+                                self.nodes[node],
+                                self.nodes[v],
+                                0,
+                                None,
+                            )
+                            .count()
+                                == 0
+                        });
                     }
+                }
+
+                false
             })
             .collect()
     }

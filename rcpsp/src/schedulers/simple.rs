@@ -40,7 +40,13 @@ pub fn simple_schedule(psp: PspLibProblem, tabu_list_size: u32, swap_range: u32)
         println!("mapped longest_path: {longest_path:?}");
     }
 
-    let moves = dag.compute_reduced_neighborhood_moves(swap_range as usize);
+    let schedule: Vec<u8> = dag
+        .compute_job_execution_ranks()
+        .into_iter()
+        .flatten()
+        .collect();
+
+    let moves = dag.compute_reduced_neighborhood_moves(schedule, swap_range as usize);
 
     println!("moves: {moves:?}");
 }
