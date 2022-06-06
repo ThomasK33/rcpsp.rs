@@ -8,9 +8,9 @@ pub trait TabuList {
     /// Add move (specified by i,j,type) to tabu list.
     fn add_turn_to_tabu_list(&mut self, i: usize, j: usize, move_type: MoveType);
     /// Inform tabu list about new best solution.
-    fn best_solution_found();
+    fn best_solution_found(&self);
     /// Tell tabu list about end of iteration.
-    fn go_to_next_iter() -> usize;
+    fn go_to_next_iter(&self) -> usize;
     /// The method removes some tabu moves randomly since all solutions in neighborhood were tabu.
     fn prune(&mut self);
 }

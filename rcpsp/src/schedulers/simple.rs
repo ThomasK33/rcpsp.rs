@@ -1,9 +1,15 @@
 use psp_lib_parser::structs::PspLibProblem;
 
-use crate::{dag::DAG, tabu_list::simple_tabu_list};
+use crate::{
+    dag::DAG,
+    tabu_list::{simple_tabu_list, TabuList},
+};
 
 pub fn simple_schedule(psp: PspLibProblem, tabu_list_size: u32, swap_range: u32) {
-    let _tabu_list = simple_tabu_list::SimpleTabuList::new(psp.jobs, tabu_list_size as usize);
+    let _tabu_list: Box<dyn TabuList> = Box::new(simple_tabu_list::SimpleTabuList::new(
+        psp.jobs,
+        tabu_list_size as usize,
+    ));
 
     let dag = DAG::new(&psp);
 

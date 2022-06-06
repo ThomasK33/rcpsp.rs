@@ -66,9 +66,9 @@ impl TabuList for SimpleTabuList {
         self.cur_idx = (self.cur_idx + 1) % self.tabu_length;
     }
 
-    fn best_solution_found() {}
+    fn best_solution_found(&self) {}
 
-    fn go_to_next_iter() -> usize {
+    fn go_to_next_iter(&self) -> usize {
         0
     }
 

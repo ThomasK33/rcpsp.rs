@@ -6,6 +6,8 @@ use petgraph::{
 };
 use psp_lib_parser::structs::PspLibProblem;
 
+use crate::sources_load::{self, EvaluationAlgorithm, SourcesLoad};
+
 pub struct DAG<'a> {
     pub graph: DiGraph<u8, u8>,
     pub psp: &'a PspLibProblem,
@@ -237,5 +239,51 @@ impl<'a> DAG<'a> {
                 false
             })
             .collect()
+    }
+
+    pub fn evaluate_order(
+        &self,
+        forward_evaluation: bool,
+        algorithm: EvaluationAlgorithm,
+        solution: &[usize],
+    ) -> usize {
+        let number_of_resources = self.psp.resources.renewable;
+        let capacity_of_resources = vec![
+            self.psp.resource_availabilities.r1 as usize,
+            self.psp.resource_availabilities.r2 as usize,
+            self.psp.resource_availabilities.r3 as usize,
+            self.psp.resource_availabilities.r4 as usize,
+        ];
+
+        let _sources_load: Box<dyn SourcesLoad> = match algorithm {
+            EvaluationAlgorithm::CapacityResolution => Box::new(
+                sources_load::CapacityResolution::new(number_of_resources, capacity_of_resources),
+            ),
+            EvaluationAlgorithm::TimeResolution => Box::new(sources_load::TimeResolution::new(
+                number_of_resources,
+                capacity_of_resources,
+                (&self.psp.request_durations)
+                    .into_iter()
+                    .map(|duration| duration.duration as usize)
+                    .sum(),
+            )),
+        };
+
+        let schedule_length: usize = 0;
+
+        for i in 0..self.psp.jobs {
+            let _start: usize = 0;
+
+            if let Some(&_activity_id) = solution.get(if forward_evaluation {
+                i
+            } else {
+                self.psp.jobs - i - 1
+            }) {
+                // TODO: Implement order evaluation
+                todo!("Implement order evaluation")
+            }
+        }
+
+        schedule_length
     }
 }

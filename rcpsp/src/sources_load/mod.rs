@@ -1,6 +1,14 @@
 pub mod capacity_resolution;
 pub mod time_resolution;
 
+pub use capacity_resolution::CapacityResolution;
+pub use time_resolution::TimeResolution;
+
+pub enum EvaluationAlgorithm {
+    CapacityResolution,
+    TimeResolution,
+}
+
 pub trait SourcesLoad {
     /// It finds out the earliest possible activity start time without resource overload.
     fn get_earliest_start_time(
