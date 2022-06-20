@@ -1,40 +1,53 @@
 use std::collections::{HashMap, HashSet};
 
-use petgraph::{
-    algo,
-    graph::{DiGraph, NodeIndex},
-};
+use petgraph::algo;
+use petgraph::visit::NodeIndexable;
 use psp_lib_parser::structs::PspLibProblem;
 
 use crate::sources_load::{self, EvaluationAlgorithm, SourcesLoad};
 
+// type Graph = petgraph::Graph<u8, u8>;
+// type NodeId = petgraph::graph::NodeIndex;
+type Graph = petgraph::matrix_graph::MatrixGraph<u8, u8>;
+type NodeId = petgraph::matrix_graph::NodeIndex;
+
 pub struct DAG<'a> {
-    pub graph: DiGraph<u8, u8>,
+    durations: HashMap<NodeId, u8>,
+    graph: Graph,
+    nodes: HashMap<u8, NodeId>,
     pub psp: &'a PspLibProblem,
-    nodes: HashMap<u8, NodeIndex>,
 }
 
 impl<'a> DAG<'a> {
     pub fn new(psp: &'a PspLibProblem) -> Self {
-        let mut graph = DiGraph::<u8, u8>::new();
+        // let mut graph = petgraph::graph::DiGraph::<u8, u8>::new();
+        let mut graph = petgraph::matrix_graph::DiMatrix::<u8, u8>::new();
+
         let mut nodes = HashMap::new();
+        let mut durations = HashMap::new();
 
         for duration in &psp.request_durations {
             let node = graph.add_node(duration.duration);
             nodes.insert(duration.job_number, node);
+            durations.insert(node, duration.duration);
         }
 
         for relation in &psp.precedence_relations {
             for successor in &relation.successors {
-                if let Some(a) = nodes.get(&(relation.job_number)) {
-                    if let Some(successor) = nodes.get(successor) {
-                        graph.add_edge(*a, *successor, 0);
+                if let Some(job_index) = nodes.get(&(relation.job_number)) {
+                    if let Some(successor_index) = nodes.get(successor) {
+                        graph.add_edge(*job_index, *successor_index, 0);
                     }
                 }
             }
         }
 
-        Self { graph, psp, nodes }
+        Self {
+            durations,
+            graph,
+            psp,
+            nodes,
+        }
     }
 
     /// Compute the upper bound of execution time by accumulating all durations
@@ -45,22 +58,22 @@ impl<'a> DAG<'a> {
             .fold(0, |acc, duration| acc + (duration.duration as usize))
     }
     /// Find the lower bound of execution time, based on the longest time in the graph
-    pub fn compute_lower_bound(&self, reversed: bool) -> Option<(u8, Vec<NodeIndex>)> {
+    pub fn compute_lower_bound(&self, reversed: bool) -> Option<(u8, Vec<NodeId>)> {
         let from = if !reversed {
-            NodeIndex::from(0)
+            self.graph.from_index(0)
         } else {
-            NodeIndex::from((self.psp.jobs - 1) as u32)
+            self.graph.from_index(self.psp.jobs - 1)
         };
         let to = if !reversed {
-            NodeIndex::from((self.psp.jobs - 1) as u32)
+            self.graph.from_index(self.psp.jobs - 1)
         } else {
-            NodeIndex::from(0)
+            self.graph.from_index(0)
         };
 
         algo::all_simple_paths::<Vec<_>, _>(&self.graph, from, to, 0, None)
             .map(|path| {
                 let weight = path.iter().fold(0, |acc, node_index| {
-                    if let Some(weight) = self.graph.node_weight(*node_index) {
+                    if let Some(weight) = self.durations.get(node_index) {
                         acc + *weight
                     } else {
                         acc
@@ -73,11 +86,11 @@ impl<'a> DAG<'a> {
     }
 
     /// Based on the number of edges
-    pub fn find_longest_path(&self) -> Option<Vec<NodeIndex>> {
+    pub fn find_longest_path(&self) -> Option<Vec<NodeId>> {
         algo::all_simple_paths::<Vec<_>, _>(
             &self.graph,
-            NodeIndex::from(0),
-            NodeIndex::from((self.psp.jobs - 1) as u32),
+            self.graph.from_index(0),
+            self.graph.from_index(self.psp.jobs - 1),
             0,
             None,
         )
