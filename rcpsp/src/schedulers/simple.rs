@@ -17,7 +17,7 @@ pub fn simple_schedule(psp: PspLibProblem, tabu_list_size: u32, swap_range: u32)
     let total_job_number:usize = psp.jobs;
     println!("psp.jobs: {total_job_number:?}");
 
-    let dag = DAG::new(&psp);
+    let dag = DAG::new(&psp, swap_range as usize);
 
     // Compute upper bounds
     // let upper_bound = dag.compute_upper_bound();
@@ -56,6 +56,7 @@ pub fn simple_schedule(psp: PspLibProblem, tabu_list_size: u32, swap_range: u32)
     //based on job_numbers, not indices
     //TODO: more initial solutions
     println!("initial_solution: {initial_solution:?}");
+
     let (new_schedule,schedule_id,schedule_time) =
         improve_schedule(initial_solution.clone(),0, 244, 0,
                      50, swap_range as usize, &dag, tabu_list_size as usize,
@@ -66,7 +67,7 @@ pub fn simple_schedule(psp: PspLibProblem, tabu_list_size: u32, swap_range: u32)
 
 }
 
-//whats going on in the threads
+//can be done by many threads parallel
 fn improve_schedule(
     mut schedule:Vec<u8>,
     _schedule_id:usize,
@@ -76,33 +77,34 @@ fn improve_schedule(
     swap_range:usize,
     dag:&DAG,
     tabu_list_size:usize,
-    total_job_number:usize, )-> (Vec<u8>,usize,u8){//schedule:Vec<u8>,schedule_number:usize,schedule_time
+    total_job_number:usize
+)-> (Vec<u8>,usize,u8){//schedule:Vec<u8>,schedule_number:usize,schedule_time
 
-    //transfer ownership in and out to reduce memory-intitalization time???
+    //transfer ownership in and out to reduce memory- intitalisation time???
     let mut _tabu_list: Box<dyn TabuList> = Box::new(simple_tabu_list::SimpleTabuList::new(
         total_job_number,
         tabu_list_size,
     ));
-    let mut best_swap:(u8,u8)=(0,0);
+    let mut best_swap:(usize,usize)=(0,0);
     let mut best_time:u8=255;
 
     for _iteration in 0 .. max_iterations {
         //still old computation in job#
-        let reduced_neighborhood: Vec<(u8,u8)> = dag.compute_reduced_neighborhood_moves(&schedule, swap_range as usize);
+        let reduced_neighborhood: Vec<(usize,usize)> = dag.filtered_reduced_neighborhood(&schedule);
         match reduced_neighborhood
-            //carry swap as identifier for the time
+            //carry swap as identifier for the schedule_time
             .into_iter()
 
             //evaluate all moves
             //this might not be the most efficient way to do this
             //TODO: try with backtracking style
-            //TODO:Dummy Evaluation
+            //TODO: Dummy Evaluation
             .map( | swap| (swap,dag.evaluate(apply_move( &schedule,swap))))
 
             //filter for not in tabu list, or global best
             .filter( | (swap, time)| {
                 if *time < global_best_solution_time {return true;}
-                _tabu_list.is_possible_move(tjn(swap.0,&schedule), tjn(swap.1,&schedule),Swap)
+                _tabu_list.is_possible_move(swap.0, swap.1,Swap)
                 })
             //get the best of those
             .max_by_key( | (_,time) | *time)
@@ -112,38 +114,193 @@ fn improve_schedule(
         }
 
         //update schedule
-        let temp= (tjn(best_swap.0,&schedule),tjn(best_swap.1,&schedule));
-        schedule.swap(temp.0,temp.1);
+        schedule.swap(best_swap.0,best_swap.1);
         println!("schedule: {schedule:?}");
-        println!("swapped: {best_swap:?} ; index: {temp:?}");
+        let temp = (schedule[best_swap.0],schedule[best_swap.1]);
+        println!("swapped: {temp:?} ; index: {best_swap:?}");
         //update global_best (only local)
         if best_time<global_best_solution_time{global_best_solution_time=best_time;}
         //update tabu_list
-        _tabu_list.add_turn_to_tabu_list(tjn(best_swap.0,&schedule),tjn(best_swap.1,&schedule),Swap);
-
+        _tabu_list.add_turn_to_tabu_list(best_swap.0,best_swap.1,Swap);
 
         if best_time==critical_path_time {break;}
     }
         (schedule,_schedule_id,best_time)
 }
 
-//function to translate job_numbers to indices
-//very inefficient, cant be avoided
-//except by using indices in the first place
-//and also have an more efficient way to filter feasible moves
-//translate job number
-//TODO: FIX THIS BOTTLENECK OF DEATH
-fn tjn(x:u8,schedule:&Vec<u8>) -> usize {
-    for i in 0..schedule.len(){
-        if x== schedule[i] {return i;}
-    }
-    println!("job# not found tjn");
-    7
-}
 //applies a move to schedule by copy
 //swap are still treated as job#, not indices
-fn apply_move(schedule:&Vec<u8>, swap:(u8,u8))->Vec<u8>{
+fn apply_move(schedule:&Vec<u8>, (u,v):(usize,usize))->Vec<u8>{
     let mut new_schedule:Vec<u8> = schedule.clone();
-    new_schedule.swap(tjn(swap.0,&schedule),tjn(swap.1,&schedule));
+    new_schedule.swap(u,v);
     new_schedule
 }
+
+/*
+pub fn schedule(_schedule: Schedule) -> Result<()> {
+    // todo!("Implement scheduler")
+
+    //============ Start Definition of Problem ============
+    // number of jobs
+    let N= rand::thread_rng().gen_range(8..30);
+    //jobs
+    let V :Vec<i32> = (0..N).collect();
+    // duration of jobs (randomly with 0 for 0th and Nth
+    let D :Vec<i32> = (0..N).map(|x| {
+            if x==0 || x==N {0}
+            else{rand::thread_rng().gen_range(5..25)}
+        }).collect();
+    //DAG of the Problem
+    let E :Vec<Vec<bool>> = (0..N).map(|i| {
+            (0..N).map(|j| {
+                if i<=j {false} //obere Dreicksmatrix
+                else if i==0 || i==N-1 {true} //Anfangs/Endpunkt
+                else {
+                    let t :i32=rand::thread_rng().gen_range(0..3);
+                    if t==0{true}
+                    else {false}
+                } //chance is 1/3 here for edges
+            }).collect()
+        }).collect();
+    //number of ressources
+    let M = rand::thread_rng().gen_range(3..7);
+    //maximal resources of system
+    let Rmax :Vec<i32> = (0..M).map(|_| rand::thread_rng().gen_range(6..14)).collect();
+    //ressource matrix
+    let R :Vec<Vec<i32>> = (0..N).map(|_| {
+            (0..M).map(|j| {
+                //makes lower values where one process wont need more then
+                // half the ressources of one type more likely, so sheduling makes more sense
+                let t1=rand::thread_rng().gen_range(0..Rmax[j]+1);
+                let t2=rand::thread_rng().gen_range(0..Rmax[j]+1);
+                t1*t2/Rmax[j]
+            }).collect()
+        }).collect();
+    //============ End Definition of Problem ============
+
+
+    let delta=rand::thread_rng().gen_range(3..5);
+    let mut Nred: Vec<(usize, usize)> = Vec::new();
+    for swap_range in 1..delta+1{
+        let mut temp : Vec<(usize, usize)>=(0 as usize..(N-swap_range) as usize).map(|i| (i,i+swap_range as usize)).collect();
+        Nred.append(&mut temp);
+    }
+    let tabuList_len=100;
+
+    let InitialSolutions :Vec<Vec<i32>> = vec![(0..N).collect()];
+    //because Definition is like that, but there are more initials (4.1.)
+
+    {
+        let mut tabuList:Vec<(usize,usize)>=vec![(0,0); tabuList_len];
+        let mut tabuCache:Vec<Vec<bool>> = vec![vec![false;N as usize];N as usize];
+        let mut writeIndex : usize = 0;
+        {
+            let Nfeasable: Vec<(usize, usize)> = generate_Nred(&Nred, &InitialSolutions[0], &E);
+
+            if Nfeasable[0]!=(0,0) && !check_STL(Nfeasable[0],&tabuCache){
+                addTo_STL(Nfeasable[0], &mut tabuCache, &mut tabuList, &mut writeIndex);
+            }
+        }
+    }
+
+
+
+    Ok(())
+}
+
+//Algorithm1
+fn generate_Nred(Nred: &Vec<(usize, usize)>, sched: &Vec<i32>, edges:&Vec<Vec<bool>>) -> Vec<(usize, usize)> {
+    let mut moves: Vec<(usize, usize)>=Nred.clone();
+    let moves_len=moves.len();
+
+    ///////
+    //removes unfeasible(5)
+    for i in 0..moves_len{
+        let u=moves[i].0;
+        let v=moves[i].1;
+        for x in u+1 .. v+1{
+            if edges
+                [sched[u] as usize]
+                [sched[x as usize] as usize]
+            {moves[i]=(0,0);break;}
+        }
+    }
+    //moves (0,0) to the end
+    let mut i=0;
+    let mut invalid=0;
+    while i<moves_len-invalid{
+        if moves[i]==(0,0){
+            while moves[moves_len-invalid-1]==(0,0){
+                invalid+=1;
+            }
+            if moves_len-invalid-1<=i {break;}
+            moves.swap(i,moves_len-invalid-1);
+            invalid+=1;
+        }
+        i+=1;
+    }
+    //removes unfeasible(6)
+    for i in 0..moves_len-invalid{
+        let u=moves[i].0;
+        let v=moves[i].1;
+        for x in u .. v{
+            if edges
+                [sched[x] as usize]
+                [sched[v] as usize]
+            {moves[i]=(0,0);break;}
+        }
+    }
+    //moves (0,0) to the end
+    i=0;
+    // invalid=0; //no reset for invalids in the end
+    while i<moves_len-invalid{
+        if moves[i]==(0,0){
+            while moves[moves_len-invalid-1]==(0,0){
+                invalid+=1;
+            }
+            if moves_len-invalid-1<=i {break;}
+            moves.swap(i,moves_len-invalid-1);
+            invalid+=1;
+        }
+        i+=1;
+    }
+    ///////
+    ///////
+    moves=moves.into_iter().filter(|(u,v)| {
+        for x in u+1 .. v+1{
+            if edges
+                [sched[*u] as usize]
+                [sched[x] as usize]
+            {return false}
+        }
+        true
+    }).collect();
+    moves=moves.into_iter().filter(|(u,v)| {
+        for x in *u .. *v{
+            if edges
+                [sched[x] as usize]
+                [sched[*v] as usize]
+            {return false}
+        }
+        true
+    }).collect();
+    //let t = sched.get(5);
+    ///////
+    return moves
+}
+
+//Algorithm2
+fn check_STL((u,v):(usize, usize),tabuCache:&Vec<Vec<bool>>)->bool{
+    tabuCache[u][v].clone()
+}
+
+//Algorithm3
+fn addTo_STL((u,v):(usize, usize), tabuCache:&mut Vec<Vec<bool>>, tabuList:&mut Vec<(usize,usize)>, writeIndex: &mut usize){
+    let (uold, vold) = tabuList[*writeIndex].clone();
+    tabuCache[uold][vold] = false;
+    tabuList[*writeIndex]= (u, v).clone();
+    tabuCache[u][v] = true;
+    *writeIndex = (*writeIndex + 1) % tabuList.len();
+
+}
+ */
