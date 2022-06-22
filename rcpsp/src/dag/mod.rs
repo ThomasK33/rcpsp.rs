@@ -174,7 +174,7 @@ impl<'a> DAG<'a> {
 
     pub fn compute_reduced_neighborhood_moves(
         &self,
-        schedule: Vec<u8>,
+        schedule: &Vec<u8>,
         swap_range: usize,
     ) -> Vec<(u8, u8)> {
         // Reduced neighborhood to initial solution depends on the neighborhood size
@@ -254,6 +254,9 @@ impl<'a> DAG<'a> {
             .collect()
     }
 
+    //for implementation
+    //TODO: Replace this
+    pub fn evaluate(&self,_schedule:Vec<u8>)->u8{42}
     pub fn evaluate_order(
         &self,
         forward_evaluation: bool,
