@@ -16,7 +16,7 @@ pub struct DAG<'a> {
     graph: Graph,
     nodes: HashMap<u8, NodeId>,
     pub psp: &'a PspLibProblem,
-    reduced_neighborhood: Vec<(usize, usize)>
+    reduced_neighborhood: Vec<(usize, usize)>,
 }
 
 impl<'a> DAG<'a> {
@@ -43,11 +43,13 @@ impl<'a> DAG<'a> {
             }
         }
 
-        let mut Nred: Vec<(usize, usize)> = Vec::new();
-        for delta in 1..(swap_range as usize)+1{
+        let mut reduced_neighborhood: Vec<(usize, usize)> = Vec::new();
+        for delta in 1..(swap_range as usize) + 1 {
             //does not include first and last node (optimization)
-            let mut temp : Vec<(usize, usize)>=(1..((psp.jobs-1)-delta)).map(|i| (i,i+delta)).collect();
-            Nred.append(&mut temp);
+            let mut temp: Vec<(usize, usize)> = (1..((psp.jobs - 1) - delta))
+                .map(|i| (i, i + delta))
+                .collect();
+            reduced_neighborhood.append(&mut temp);
         }
 
         Self {
@@ -55,7 +57,7 @@ impl<'a> DAG<'a> {
             graph,
             psp,
             nodes,
-            reduced_neighborhood: Nred
+            reduced_neighborhood,
         }
     }
 
@@ -182,41 +184,45 @@ impl<'a> DAG<'a> {
     }
 
     //new version based on indices
-    pub fn filtered_reduced_neighborhood(&self,schedule:&Vec<u8>)->Vec<(usize, usize)>{
-        let mut moves: Vec<(usize, usize)>=self.reduced_neighborhood.clone();
-        moves=moves.into_iter().filter(|(u,v)| {
-            for x in u+1 .. v+1{
-
-                //just some extra layers of complexity to use an oversize library and a hash map for fun
-                if let Some(u_index) = self.nodes.get(&schedule[*u]) {
-                    if let Some(v_index) = self.nodes.get(&schedule[x]) {
-                        if self.graph.has_edge(*u_index,*v_index)
-                        {return false}
+    pub fn filtered_reduced_neighborhood(&self, schedule: &Vec<u8>) -> Vec<(usize, usize)> {
+        self.reduced_neighborhood
+            .iter()
+            .filter(|(u, v)| {
+                for x in u + 1..v + 1 {
+                    //just some extra layers of complexity to use an oversize library and a hash map for fun
+                    if let Some(u_index) = self.nodes.get(&schedule[*u]) {
+                        if let Some(v_index) = self.nodes.get(&schedule[x]) {
+                            if self.graph.has_edge(*u_index, *v_index) {
+                                return false;
+                            }
+                        } else {
+                            return false;
+                        }
+                    } else {
+                        return false;
                     }
-                    else{return false}
                 }
-                else{return false}
-
-            }
-            true
-        }).collect();
-        moves=moves.into_iter().filter(|(u,v)| {
-            for x in *u .. *v{
-
-                //just some extra layers of complexity to use an oversize library and a hash map for fun
-                if let Some(u_index) = self.nodes.get(&schedule[x]) {
-                    if let Some(v_index) = self.nodes.get(&schedule[*v]) {
-                        if self.graph.has_edge(*u_index,*v_index)
-                        {return false}
+                true
+            })
+            .filter(|(u, v)| {
+                for x in *u..*v {
+                    //just some extra layers of complexity to use an oversize library and a hash map for fun
+                    if let Some(u_index) = self.nodes.get(&schedule[x]) {
+                        if let Some(v_index) = self.nodes.get(&schedule[*v]) {
+                            if self.graph.has_edge(*u_index, *v_index) {
+                                return false;
+                            }
+                        } else {
+                            return false;
+                        }
+                    } else {
+                        return false;
                     }
-                    else{return false}
                 }
-                else{return false}
-
-            }
-            true
-        }).collect();
-        moves
+                true
+            })
+            .map(|&entry| entry)
+            .collect()
     }
 
     //old version
@@ -304,7 +310,10 @@ impl<'a> DAG<'a> {
 
     //for implementation
     //TODO: Replace this
-    pub fn evaluate(&self,_schedule:Vec<u8>)->u8{42}
+    pub fn evaluate(&self, _schedule: Vec<u8>) -> u8 {
+        42
+    }
+
     pub fn evaluate_order(
         &self,
         forward_evaluation: bool,
@@ -327,7 +336,7 @@ impl<'a> DAG<'a> {
                 number_of_resources,
                 capacity_of_resources,
                 (&self.psp.request_durations)
-                    .into_iter()
+                    .iter()
                     .map(|duration| duration.duration as usize)
                     .sum(),
             )),
