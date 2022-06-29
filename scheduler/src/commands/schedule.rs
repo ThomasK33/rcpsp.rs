@@ -16,8 +16,12 @@ pub fn schedule(schedule: Schedule) -> Result<()> {
 
         rcpsp::schedulers::simple::simple_schedule(
             psp,
-            schedule.tabu_list_size,
-            schedule.swap_range,
+            rcpsp::schedulers::simple::SimpleScheduleOptions {
+                number_of_iterations: schedule.number_of_iterations,
+                max_iter_since_best: schedule.max_iter_since_best,
+                tabu_list_size: schedule.tabu_list_size,
+                swap_range: schedule.swap_range,
+            },
         );
     }
 

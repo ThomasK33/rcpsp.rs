@@ -1,12 +1,10 @@
-use crate::MoveType;
-
 pub mod simple_tabu_list;
 
 pub trait TabuList {
     /// Check if move is permitted
-    fn is_possible_move(&self, i: usize, j: usize, move_type: MoveType) -> bool;
+    fn is_possible_move(&self, i: usize, j: usize) -> bool;
     /// Add move (specified by i,j,type) to tabu list.
-    fn add_turn_to_tabu_list(&mut self, i: usize, j: usize, move_type: MoveType);
+    fn add_turn_to_tabu_list(&mut self, i: usize, j: usize);
     /// Inform tabu list about new best solution.
     fn best_solution_found(&self);
     /// Tell tabu list about end of iteration.

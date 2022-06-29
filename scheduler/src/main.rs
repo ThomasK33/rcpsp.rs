@@ -2,7 +2,7 @@
 use std::path::PathBuf;
 
 use clap::{ArgEnum, Parser, Subcommand};
-use clap_verbosity_flag::Verbosity;
+use clap_verbosity_flag::{InfoLevel, Verbosity};
 use log::{debug, error};
 
 mod commands;
@@ -11,7 +11,7 @@ mod commands;
 /// RCPSP scheduler
 struct App {
     #[clap(flatten)]
-    verbose: Verbosity,
+    verbose: Verbosity<InfoLevel>,
 
     #[clap(subcommand)]
     command: Commands,

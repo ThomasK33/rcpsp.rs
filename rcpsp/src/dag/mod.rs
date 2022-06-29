@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use log::info;
+use log::trace;
 use petgraph::algo;
 use petgraph::visit::NodeIndexable;
 use psp_lib_parser::structs::PspLibProblem;
@@ -19,7 +19,8 @@ pub struct DAG<'a> {
     node_to_jobs: HashMap<NodeId, u8>,
     pub psp: &'a PspLibProblem,
 
-    requests: HashMap<u8, (u8, u8, u8, u8)>,
+    // requests: HashMap<u8, (u8, u8, u8, u8)>,
+    requests: HashMap<u8, Vec<u8>>,
 }
 
 impl<'a> DAG<'a> {
@@ -52,7 +53,8 @@ impl<'a> DAG<'a> {
         for request in &psp.request_durations {
             requests.insert(
                 request.job_number,
-                (request.r1, request.r2, request.r3, request.r4),
+                // (request.r1, request.r2, request.r3, request.r4),
+                vec![request.r1, request.r2, request.r3, request.r4],
             );
         }
 
@@ -190,7 +192,7 @@ impl<'a> DAG<'a> {
 
     pub fn compute_reduced_neighborhood_moves(
         &self,
-        schedule: Vec<u8>,
+        schedule: &[u8],
         swap_range: usize,
     ) -> Vec<(u8, u8)> {
         // Reduced neighborhood to initial solution depends on the neighborhood size
@@ -249,18 +251,27 @@ impl<'a> DAG<'a> {
                         let start_index = index_u.min(index_v);
                         let end_index = index_v.max(index_u);
 
-                        let nodes_between = &schedule[start_index..end_index];
+                        let nodes_between = &schedule[start_index..end_index + 1];
 
                         return nodes_between.iter().all(|node| {
                             algo::all_simple_paths::<Vec<_>, _>(
                                 &self.graph,
                                 self.job_to_nodes[node],
-                                self.job_to_nodes[v],
+                                self.job_to_nodes[nodes_between.last().unwrap()],
                                 0,
                                 None,
                             )
                             .count()
                                 == 0
+                                && algo::all_simple_paths::<Vec<_>, _>(
+                                    &self.graph,
+                                    self.job_to_nodes[nodes_between.first().unwrap()],
+                                    self.job_to_nodes[node],
+                                    0,
+                                    None,
+                                )
+                                .count()
+                                    == 0
                         });
                     }
                 }
@@ -317,7 +328,7 @@ impl<'a> DAG<'a> {
     }
 
     pub fn compute_execution_time(&self, schedule: &[u8]) -> usize {
-        let resources: Vec<Vec<i32>> = vec![vec![0; self.compute_upper_bound()]; 4];
+        let mut resources: Vec<Vec<u32>> = vec![vec![0; self.compute_upper_bound()]; 4];
         let resource_limits = vec![
             self.psp.resource_availabilities.r1,
             self.psp.resource_availabilities.r2,
@@ -325,13 +336,14 @@ impl<'a> DAG<'a> {
             self.psp.resource_availabilities.r4,
         ];
 
-        // TODO: Put task resource requirements into resources vector
+        // Mapping of job number --> earliest job start time
+        let mut start_times: HashMap<u8, usize> = HashMap::new();
 
-        let start_times: HashMap<u8, usize> = HashMap::new();
+        // Insert the genesis task with a start time of 0
+        start_times.insert(1, 0);
 
-        // TODO: Compute earliest start time for each task
-        // The earliest start time for a job is: maximum(earliest start time of all it's predecessors + their execution time)
-        // Once the earliest start time has been determined, try fitting the task into the resources vector
+        // Compute earliest start time for each task
+        // The earliest start time for a job is: maximum(start time of all it's predecessors + their execution time)
 
         for job_id in schedule {
             let predecessors_node_ids = self.graph.neighbors_directed(
@@ -339,12 +351,72 @@ impl<'a> DAG<'a> {
                 petgraph::EdgeDirection::Incoming,
             );
 
-            let predecessors_job_ids: Vec<u8> = predecessors_node_ids
+            let start_time = predecessors_node_ids
                 .map(|node_id| *self.node_to_jobs.get(&node_id).unwrap())
-                .collect();
+                .map(|job_number| {
+                    let duration = self
+                        .durations
+                        .get(self.job_to_nodes.get(&job_number).unwrap())
+                        .map(|&duration| duration)
+                        .unwrap_or_else(|| 0) as usize;
 
-            info!("{predecessors_job_ids:?}");
+                    *start_times.get(&job_number).unwrap_or_else(|| &0) + duration
+                })
+                .max();
+
+            if let Some(start_time) = start_time {
+                let mut start_time = start_time;
+
+                // Once the earliest start time has been determined, try fitting the task into the resources vector
+                if let Some(requirements) = self.requests.get(&job_id) {
+                    // (0..4).into_iter();
+
+                    // (1) For each index in 0..4:
+                    // (2) - check if: resources[index][start_time] + requirements[index] <= resource_limits[index]
+                    // (3) - if true:
+                    // (4) --> for d in 0..self.durations[job_id]:
+                    // (5)       - check if resources[index][start_time + d] + requirements[index] <= resource_limits[index]
+                    // (6)       - if true: continue
+                    // (7)       - else: start_time += 1 --> repeat (1)
+                    // (8)     - loop (4) finishes, continue loop (2) iteration
+                    // (9) - loop (2) finishes --> finish
+                    // (4) - else --> start_time += 1 --> repeat (1)
+
+                    loop {
+                        'index_loop: for index in 0..4 {
+                            for duration in 0..self.durations[&self.job_to_nodes[job_id]] {
+                                if resources[index][start_time + duration as usize]
+                                    + (requirements[index] as u32)
+                                    > resource_limits[index] as u32
+                                {
+                                    start_time += 1;
+                                    break 'index_loop;
+                                }
+                            }
+                        }
+
+                        // Put task resource requirements into resources vector
+                        for index in 0..4 {
+                            for duration in 0..self.durations[&self.job_to_nodes[job_id]] {
+                                resources[index][start_time + duration as usize] +=
+                                    requirements[index] as u32;
+                            }
+                        }
+
+                        break;
+                    }
+                }
+
+                start_times.insert(*job_id, start_time);
+            }
         }
+
+        trace!("schedule: {schedule:?}");
+        trace!("start_times: {start_times:?}");
+        trace!("resources[0]: {:?}", resources[0]);
+        trace!("resources[1]: {:?}", resources[1]);
+        trace!("resources[2]: {:?}", resources[2]);
+        trace!("resources[3]: {:?}", resources[3]);
 
         // Zip resource usage vectors together and filter out all unused space time slots
         let mut resources = resources;
