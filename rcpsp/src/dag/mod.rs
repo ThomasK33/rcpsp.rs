@@ -254,24 +254,13 @@ impl<'a> DAG<'a> {
                         let nodes_between = &schedule[start_index..end_index + 1];
 
                         return nodes_between.iter().all(|node| {
-                            algo::all_simple_paths::<Vec<_>, _>(
-                                &self.graph,
+                            !(self.graph.has_edge(
                                 self.job_to_nodes[node],
                                 self.job_to_nodes[nodes_between.last().unwrap()],
-                                0,
-                                None,
-                            )
-                            .count()
-                                == 0
-                                && algo::all_simple_paths::<Vec<_>, _>(
-                                    &self.graph,
-                                    self.job_to_nodes[nodes_between.first().unwrap()],
-                                    self.job_to_nodes[node],
-                                    0,
-                                    None,
-                                )
-                                .count()
-                                    == 0
+                            ) || self.graph.has_edge(
+                                self.job_to_nodes[nodes_between.first().unwrap()],
+                                self.job_to_nodes[node],
+                            ))
                         });
                     }
                 }
