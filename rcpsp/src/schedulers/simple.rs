@@ -6,6 +6,7 @@ use crate::{
     tabu_list::{simple_tabu_list::SimpleTabuList, TabuList},
 };
 
+#[derive(Debug, Clone)]
 pub struct SimpleScheduleOptions {
     pub number_of_iterations: u32,
     pub max_iter_since_best: u32,
