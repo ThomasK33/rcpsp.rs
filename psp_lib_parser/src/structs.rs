@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct PspLibProblem {
     // file metadata
     pub file_with_basedata: String,
@@ -18,14 +18,14 @@ pub struct PspLibProblem {
     pub resource_availabilities: PspLibResourceAvailability,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct PspLibProblemResources {
     pub renewable: usize,
     pub nonrenewable: usize,
     pub doubly_constrained: usize,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct PspLibProjectInformation {
     pub number: u8,
     pub jobs: u8,
@@ -35,7 +35,7 @@ pub struct PspLibProjectInformation {
     pub mpm_time: u8,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct PspLibPrecedenceRelation {
     pub job_number: u8,
     pub mode_count: u8,
@@ -43,7 +43,7 @@ pub struct PspLibPrecedenceRelation {
     pub successors: Vec<u8>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct PspLibRequestDuration {
     pub job_number: u8,
     pub mode: u8,
@@ -54,7 +54,7 @@ pub struct PspLibRequestDuration {
     pub r4: u8,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct PspLibResourceAvailability {
     pub r1: u8,
     pub r2: u8,

@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use log::info;
 use petgraph::algo;
 use petgraph::visit::NodeIndexable;
 use psp_lib_parser::structs::PspLibProblem;
@@ -14,8 +15,11 @@ type NodeId = petgraph::matrix_graph::NodeIndex;
 pub struct DAG<'a> {
     durations: HashMap<NodeId, u8>,
     graph: Graph,
-    nodes: HashMap<u8, NodeId>,
+    job_to_nodes: HashMap<u8, NodeId>,
+    node_to_jobs: HashMap<NodeId, u8>,
     pub psp: &'a PspLibProblem,
+
+    requests: HashMap<u8, (u8, u8, u8, u8)>,
 }
 
 impl<'a> DAG<'a> {
@@ -23,30 +27,42 @@ impl<'a> DAG<'a> {
         // let mut graph = petgraph::graph::DiGraph::<u8, u8>::new();
         let mut graph = petgraph::matrix_graph::DiMatrix::<u8, u8>::new();
 
-        let mut nodes = HashMap::new();
+        let mut job_to_nodes = HashMap::new();
+        let mut node_to_jobs = HashMap::new();
         let mut durations = HashMap::new();
+        let mut requests = HashMap::new();
 
         for duration in &psp.request_durations {
             let node = graph.add_node(duration.duration);
-            nodes.insert(duration.job_number, node);
+            job_to_nodes.insert(duration.job_number, node);
+            node_to_jobs.insert(node, duration.job_number);
             durations.insert(node, duration.duration);
         }
 
         for relation in &psp.precedence_relations {
             for successor in &relation.successors {
-                if let Some(job_index) = nodes.get(&(relation.job_number)) {
-                    if let Some(successor_index) = nodes.get(successor) {
+                if let Some(job_index) = job_to_nodes.get(&(relation.job_number)) {
+                    if let Some(successor_index) = job_to_nodes.get(successor) {
                         graph.add_edge(*job_index, *successor_index, 0);
                     }
                 }
             }
         }
 
+        for request in &psp.request_durations {
+            requests.insert(
+                request.job_number,
+                (request.r1, request.r2, request.r3, request.r4),
+            );
+        }
+
         Self {
             durations,
             graph,
             psp,
-            nodes,
+            job_to_nodes,
+            node_to_jobs,
+            requests,
         }
     }
 
@@ -238,8 +254,8 @@ impl<'a> DAG<'a> {
                         return nodes_between.iter().all(|node| {
                             algo::all_simple_paths::<Vec<_>, _>(
                                 &self.graph,
-                                self.nodes[node],
-                                self.nodes[v],
+                                self.job_to_nodes[node],
+                                self.job_to_nodes[v],
                                 0,
                                 None,
                             )
@@ -276,7 +292,7 @@ impl<'a> DAG<'a> {
                 number_of_resources,
                 capacity_of_resources,
                 (&self.psp.request_durations)
-                    .into_iter()
+                    .iter()
                     .map(|duration| duration.duration as usize)
                     .sum(),
             )),
@@ -298,5 +314,48 @@ impl<'a> DAG<'a> {
         }
 
         schedule_length
+    }
+
+    pub fn compute_execution_time(&self, schedule: &[u8]) -> usize {
+        let resources: Vec<Vec<i32>> = vec![vec![0; self.compute_upper_bound()]; 4];
+        let resource_limits = vec![
+            self.psp.resource_availabilities.r1,
+            self.psp.resource_availabilities.r2,
+            self.psp.resource_availabilities.r3,
+            self.psp.resource_availabilities.r4,
+        ];
+
+        // TODO: Put task resource requirements into resources vector
+
+        let start_times: HashMap<u8, usize> = HashMap::new();
+
+        // TODO: Compute earliest start time for each task
+        // The earliest start time for a job is: maximum(earliest start time of all it's predecessors + their execution time)
+        // Once the earliest start time has been determined, try fitting the task into the resources vector
+
+        for job_id in schedule {
+            let predecessors_node_ids = self.graph.neighbors_directed(
+                *self.job_to_nodes.get(job_id).unwrap(),
+                petgraph::EdgeDirection::Incoming,
+            );
+
+            let predecessors_job_ids: Vec<u8> = predecessors_node_ids
+                .map(|node_id| *self.node_to_jobs.get(&node_id).unwrap())
+                .collect();
+
+            info!("{predecessors_job_ids:?}");
+        }
+
+        // Zip resource usage vectors together and filter out all unused space time slots
+        let mut resources = resources;
+        resources
+            .remove(0)
+            .into_iter()
+            .zip(resources.remove(0))
+            .zip(resources.remove(0))
+            .zip(resources.remove(0))
+            .map(|entry| (entry.0 .0 .0, entry.0 .0 .1, entry.0 .1, entry.1))
+            .filter(|&element| element != (0, 0, 0, 0))
+            .count()
     }
 }
