@@ -22,6 +22,7 @@ pub fn schedule(schedule: Schedule) -> Result<()> {
                 tabu_list_size: schedule.tabu_list_size,
                 swap_range: schedule.swap_range,
                 parallel: schedule.parallel,
+                iter_since_best_reset: schedule.iter_since_best_reset,
             },
         );
     }

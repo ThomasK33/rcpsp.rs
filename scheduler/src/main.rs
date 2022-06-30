@@ -65,28 +65,17 @@ pub struct Schedule {
     /// diversification is called.
     #[clap(long, visible_alias = "misb", default_value_t = 300)]
     max_iter_since_best: u32,
+    /// Number of iterations without finding an improved solution
+    /// after which tabu search will begin at the initial solution again
+    #[clap(long, visible_alias = "isbr", default_value_t = 150)]
+    iter_since_best_reset: u32,
     /// Size of the simple tabu list. Ignored for the advanced tabu list.
     #[clap(long, visible_alias = "tls", default_value_t = 800)]
     tabu_list_size: u32,
-    /// Relative amount (0-1) of elements will be erased from the advanced tabu list
-    /// if diversification will be called.
-    #[clap(long, visible_alias = "rea", default_value_t = 0.3)]
-    randomize_erase_amount: f64,
-    /// Lifetime of the newly added swap move to the advanced tabu list.
-    #[clap(long, visible_alias = "swlf", default_value_t = 80)]
-    swap_life_factor: u32,
-    /// Lifetime of the newly added shift move to the advanced tabu list.
-    #[clap(long, visible_alias = "shlf", default_value_t = 120)]
-    shift_life_factor: u32,
+
     /// Maximal distance between swapped activities.
     #[clap(long, visible_alias = "swr", default_value_t = 60)]
     swap_range: u32,
-    /// Maximal number of activities which moved activity can go through.
-    #[clap(long, visible_alias = "shr", default_value_t = 0)]
-    shift_range: u32,
-    /// Number of performed swaps for every diversification.
-    #[clap(long, visible_alias = "ds", default_value_t = 10)]
-    diversification_swaps: u32,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, ArgEnum)]

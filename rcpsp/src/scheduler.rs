@@ -14,6 +14,7 @@ pub struct SchedulerOptions {
     pub tabu_list_size: u32,
     pub swap_range: u32,
     pub parallel: bool,
+    pub iter_since_best_reset: u32,
 }
 
 pub fn scheduler(psp: PspLibProblem, options: SchedulerOptions) {
@@ -36,6 +37,11 @@ pub fn scheduler(psp: PspLibProblem, options: SchedulerOptions) {
     let mut best_execution_time = execution_time;
     let mut best_execution_schedule = schedule.clone();
     let mut iter_since_best = 0;
+    let mut reset_counter = 0;
+
+    // Select swap with highest execution time reduction
+    //  Check if in tabu list
+    let mut tabu_list = SimpleTabuList::new(psp.jobs, options.tabu_list_size as usize);
 
     for _ in 0..options.number_of_iterations {
         debug!("iter_since_best: {iter_since_best}");
@@ -45,6 +51,13 @@ pub fn scheduler(psp: PspLibProblem, options: SchedulerOptions) {
                 "did not find better move in {iter_since_best} iterations, thus stopping search"
             );
             break;
+        }
+
+        if reset_counter >= options.iter_since_best_reset {
+            debug!("did not find a better solution in {reset_counter} iterations, resetting tabu search back to currently best solution");
+            schedule = best_execution_schedule.clone();
+            reset_counter = 0;
+            tabu_list.prune();
         }
 
         let moves = dag.compute_reduced_neighborhood_moves(&schedule, options.swap_range as usize);
@@ -76,14 +89,10 @@ pub fn scheduler(psp: PspLibProblem, options: SchedulerOptions) {
         rated_moves.sort_by_key(|evaluated_move| evaluated_move.0);
         trace!("rated_moves: {rated_moves:?}");
 
-        // Select swap with highest execution time reduction
-        //  Check if in tabu list
-        let mut tabu_list = SimpleTabuList::new(psp.jobs, options.tabu_list_size as usize);
-
         for (execution_time, (i, j)) in rated_moves {
             if tabu_list.is_possible_move(i as usize, j as usize)
-            // Potentially add an aspiration criteria
-            // || execution_time < best_execution_time
+            // aspiration criteria
+            || execution_time < best_execution_time
             {
                 let index_a = schedule.iter().position(|&job| job == i).unwrap();
                 let index_b = schedule.iter().position(|&job| job == j).unwrap();
@@ -96,13 +105,15 @@ pub fn scheduler(psp: PspLibProblem, options: SchedulerOptions) {
                     best_execution_time = execution_time;
                     best_execution_schedule = schedule.clone();
                     iter_since_best = 0;
-                } else {
-                    iter_since_best += 1;
+                    reset_counter = 0;
                 }
 
                 break;
             }
         }
+
+        iter_since_best += 1;
+        reset_counter += 1;
     }
 
     info!("best_execution_schedule: {best_execution_schedule:?}");

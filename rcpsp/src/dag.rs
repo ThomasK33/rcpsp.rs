@@ -296,10 +296,10 @@ impl<'a> DAG<'a> {
                     let duration = self
                         .durations
                         .get(self.job_to_nodes.get(&job_number).unwrap())
-                        .map(|&duration| duration)
-                        .unwrap_or_else(|| 0) as usize;
+                        .copied()
+                        .unwrap_or(0) as usize;
 
-                    *start_times.get(&job_number).unwrap_or_else(|| &0) + duration
+                    *start_times.get(&job_number).unwrap_or(&0) + duration
                 })
                 .max();
 
@@ -307,7 +307,7 @@ impl<'a> DAG<'a> {
                 let mut start_time = start_time;
 
                 // Once the earliest start time has been determined, try fitting the task into the resources vector
-                if let Some(requirements) = self.requests.get(&job_id) {
+                if let Some(requirements) = self.requests.get(job_id) {
                     // (0..4).into_iter();
 
                     // (1) For each index in 0..4:
@@ -322,6 +322,8 @@ impl<'a> DAG<'a> {
                     // (4) - else --> start_time += 1 --> repeat (1)
 
                     loop {
+                        let mut finished = true;
+
                         'index_loop: for index in 0..4 {
                             for duration in 0..self.durations[&self.job_to_nodes[job_id]] {
                                 if resources[index][start_time + duration as usize]
@@ -329,20 +331,23 @@ impl<'a> DAG<'a> {
                                     > resource_limits[index] as u32
                                 {
                                     start_time += 1;
+                                    finished = false;
                                     break 'index_loop;
                                 }
                             }
                         }
 
-                        // Put task resource requirements into resources vector
-                        for index in 0..4 {
-                            for duration in 0..self.durations[&self.job_to_nodes[job_id]] {
-                                resources[index][start_time + duration as usize] +=
-                                    requirements[index] as u32;
+                        if finished {
+                            // Put task resource requirements into resources vector
+                            for index in 0..4 {
+                                for duration in 0..self.durations[&self.job_to_nodes[job_id]] {
+                                    resources[index][start_time + duration as usize] +=
+                                        requirements[index] as u32;
+                                }
                             }
-                        }
 
-                        break;
+                            break;
+                        }
                     }
                 }
 
