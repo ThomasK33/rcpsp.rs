@@ -81,8 +81,10 @@ pub fn scheduler(psp: PspLibProblem, options: SchedulerOptions) {
         let mut tabu_list = SimpleTabuList::new(psp.jobs, options.tabu_list_size as usize);
 
         for (execution_time, (i, j)) in rated_moves {
-            // TODO: Potentially add aspiration criteria
-            if tabu_list.is_possible_move(i as usize, j as usize) {
+            if tabu_list.is_possible_move(i as usize, j as usize)
+            // Potentially add an aspiration criteria
+            // || execution_time < best_execution_time
+            {
                 let index_a = schedule.iter().position(|&job| job == i).unwrap();
                 let index_b = schedule.iter().position(|&job| job == j).unwrap();
 
