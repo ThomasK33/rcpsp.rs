@@ -9,7 +9,8 @@ struct BenchmarkSet<'a> {
 
 pub fn criterion_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("scheduler");
-    group.sample_size(50);
+    // group.sample_size(50);
+    group.sample_size(10);
     group.sampling_mode(criterion::SamplingMode::Flat);
 
     let sets: Vec<BenchmarkSet> = vec![

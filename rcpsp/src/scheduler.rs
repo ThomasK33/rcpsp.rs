@@ -78,37 +78,40 @@ pub fn scheduler(psp: PspLibProblem, options: SchedulerOptions) {
 
             (execution_time, (job_a, job_b))
         };
+        let filter_op = |(execution_time, (i, j)): &(usize, (u8, u8))| {
+            tabu_list.is_possible_move(*i as usize, *j as usize)
+                || *execution_time < best_execution_time
+        };
 
         let mut rated_moves: Vec<(usize, (u8, u8))> = {
             if options.parallel {
-                moves.into_par_iter().map(map_op).collect()
+                moves
+                    .into_par_iter()
+                    .map(map_op)
+                    .filter(filter_op)
+                    .collect()
             } else {
-                moves.into_iter().map(map_op).collect()
+                moves.into_iter().map(map_op).filter(filter_op).collect()
             }
         };
         rated_moves.sort_by_key(|evaluated_move| evaluated_move.0);
         trace!("rated_moves: {rated_moves:?}");
 
-        for (execution_time, (i, j)) in rated_moves {
-            if tabu_list.is_possible_move(i as usize, j as usize)
-            // aspiration criteria
-            || execution_time < best_execution_time
-            {
-                let index_a = schedule.iter().position(|&job| job == i).unwrap();
-                let index_b = schedule.iter().position(|&job| job == j).unwrap();
+        if let Some(&highest_rated_move) = rated_moves.first() {
+            let (execution_time, (i, j)) = highest_rated_move;
 
-                schedule.swap(index_a, index_b);
+            let index_a = schedule.iter().position(|&job| job == i).unwrap();
+            let index_b = schedule.iter().position(|&job| job == j).unwrap();
 
-                tabu_list.add_turn_to_tabu_list(i as usize, j as usize);
+            schedule.swap(index_a, index_b);
 
-                if execution_time < best_execution_time {
-                    best_execution_time = execution_time;
-                    best_execution_schedule = schedule.clone();
-                    iter_since_best = 0;
-                    reset_counter = 0;
-                }
+            tabu_list.add_turn_to_tabu_list(i as usize, j as usize);
 
-                break;
+            if execution_time < best_execution_time {
+                best_execution_time = execution_time;
+                best_execution_schedule = schedule.clone();
+                iter_since_best = 0;
+                reset_counter = 0;
             }
         }
 
