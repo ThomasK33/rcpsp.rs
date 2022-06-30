@@ -7,11 +7,18 @@ use crate::{
     tabu_list::{simple_tabu_list, TabuList},
 };
 
+use rand::thread_rng;
+use rand::seq::SliceRandom;
+use std::sync::{Arc,mpsc};
+use std::sync::mpsc::Receiver;
+use std::thread;
+use std::time::Duration;
+
 pub fn simple_schedule(psp: PspLibProblem, tabu_list_size: u32, swap_range: u32) {
     let total_job_number: usize = psp.jobs;
     debug!("psp.jobs: {total_job_number:?}");
 
-    let dag = DAG::new(&psp, swap_range as usize);
+    let dag = DAG::new(psp, swap_range as usize);
 
     // Compute upper bounds
     // let upper_bound = dag.compute_upper_bound();
@@ -47,33 +54,155 @@ pub fn simple_schedule(psp: PspLibProblem, tabu_list_size: u32, swap_range: u32)
     debug!("execution_ranks: {job_execution_ranks:?}");
 
     let initial_solution: Vec<u8> = job_execution_ranks.clone().into_iter().flatten().collect();
-    //based on job_numbers, not indices
-    //TODO: more initial solutions
-    debug!("initial_solution: {initial_solution:?}");
 
+    let thread_count=8;
+    let mut solutions: Vec<Vec<u8>> = vec![initial_solution];
+
+
+    //let mut extra_inital_solutions: Vec<Vec<u8>> = (0..thread_count-1).into_iter().map(|_| job_execution_ranks.clone().into_iter().map(|mut x| x.shuffle(&mut thread_rng())).flatten().collect()).collect();
+    let mut extra_inital_solutions: Vec<Vec<u8>> = (0..thread_count-1).into_iter().map(|_| job_execution_ranks.clone().into_iter().flatten().collect()).collect();
+    solutions.append(&mut extra_inital_solutions);
+    let mut solution_times : Vec<u8> = solutions.clone().into_iter().map(|s| dag.evaluate(s)).collect();
+    let mut global_best_solution_time: u8 = solution_times.iter().min().unwrap().clone();
+    //based on job_numbers, not indices
+    debug!("initial_solution: {solutions:?}");
+
+
+    //spawn threads
+    let mut handles = vec![];
+    let dag_arc=Arc::new(dag);
+    let (tx_main, rx_main) = mpsc::channel();
+    let mut txs = vec![];
+
+    for id in 0..thread_count {
+        let dag_arc = Arc::clone(&dag_arc);
+        let tx_main=tx_main.clone();
+        let (tx, rx) = mpsc::channel();
+        let handle = thread::spawn(move || {
+            thread_body(
+                0,
+                swap_range as usize,
+                dag_arc,
+                tabu_list_size as usize,
+                total_job_number,
+                id,
+                tx_main,
+                rx,
+            )
+        });
+        handles.push(handle);
+        txs.push(tx);
+    }
+
+    //use threads via messages
+    for id in 0..thread_count as usize {
+        txs[id].send((
+            solutions[id].clone(),
+            id,
+            global_best_solution_time,
+            10,
+            )
+        ).unwrap();
+        //thread::sleep(Duration::from_millis(100));
+    }
+
+    //manege completed threads
+    let mut counter=0;
+    //let (new_schedule, schedule_id, schedule_time,id) = rx_main.recv().unwrap();
+    for (new_schedule, schedule_id, schedule_time,id) in rx_main {
+        println!("Got in main: {},",id);
+        println!("solution: {new_schedule:?}");
+        println!("schedule_time: {schedule_time:?}, schedule_id:{schedule_id:?}, thread:{id:?}");
+
+        if(schedule_time<=solution_times[schedule_id]){
+            solutions[schedule_id]=new_schedule;
+            solution_times[schedule_id]=schedule_time;
+            if(schedule_time<global_best_solution_time){
+                global_best_solution_time=schedule_time
+            }
+        }
+        /*
+        { //make this scope more complex!
+            txs[id].send((
+                solutions[id].clone(),
+                id,
+                global_best_solution_time,
+                10,
+            )
+            ).unwrap();
+        }
+        */
+
+        counter+=1;
+        if counter>=thread_count{
+            break;
+        }
+    }
+
+    //destroy threads
+    for handle in handles {
+        handle.join().unwrap();
+    }
+    println!("WOW it runs")
+    /*
     let (new_schedule, schedule_id, schedule_time) = improve_schedule(
         initial_solution.clone(),
         0,
         244,
-        0,
         50,
+        0,
         swap_range as usize,
         &dag,
         tabu_list_size as usize,
         total_job_number,
     );
+
     debug!("solution: {new_schedule:?}");
     debug!("solution: {schedule_time:?}");
     debug!("WOW it runs")
+    */
 }
 
+fn thread_body(
+    critical_path_time: u8,            //u8 used for time for consistency
+    swap_range: usize,
+    dag: Arc<DAG>,
+    tabu_list_size: usize,
+    total_job_number: usize,
+    fake_thread_id:usize,
+    tx: std::sync::mpsc::Sender<(Vec<u8>, usize, u8, usize)>,//schedule:Vec<u8>,schedule_number:usize,schedule_time,fake_thread_id
+    rx: Receiver<(Vec<u8>,usize,u8,u16)>,//schedule:Vec<u8>,_schedule_id: usize, global_best_solution_time: u8, max_iterations: u16,
+){
+    let (schedule, _schedule_id, global_best_solution_time, max_iterations) = rx.recv().unwrap();
+    println!("Got in Thread: ,{}",_schedule_id);
+
+    //dont pass schedule id?
+    let (new_schedule, schedule_id, schedule_time) = improve_schedule(
+        schedule,
+        _schedule_id,
+        global_best_solution_time,
+        max_iterations,
+
+        0,
+        swap_range as usize,
+        &dag,
+        tabu_list_size as usize,
+        total_job_number,
+    );
+
+    //for val in vals {
+    tx.send((new_schedule, schedule_id, schedule_time, fake_thread_id) ).unwrap();
+        //thread::sleep(Duration::from_secs(1));
+    //}
+}
 //can be done by many threads parallel
 fn improve_schedule(
     mut schedule: Vec<u8>,
     _schedule_id: usize,
     mut global_best_solution_time: u8, //u8 probably to small for the durations
-    critical_path_time: u8,            //used for time for consistency
     max_iterations: u16,
+
+    critical_path_time: u8,            //used for time for consistency
     swap_range: usize,
     dag: &DAG,
     tabu_list_size: usize,

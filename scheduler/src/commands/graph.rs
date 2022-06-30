@@ -26,7 +26,7 @@ pub fn graph(input_path: PathBuf, output_path: PathBuf) -> Result<()> {
 fn write_dot_file(mut file: fs::File, psp: psp_lib_parser::structs::PspLibProblem) -> Result<()> {
     // Calculate same execution ranks
     // ranks = dependency ranks
-    let ranks: Vec<Vec<u8>> = rcpsp::dag::DAG::new(&psp,0).compute_job_execution_ranks();
+    let ranks: Vec<Vec<u8>> = rcpsp::dag::DAG::new(psp.clone(),0).compute_job_execution_ranks();
 
     let durations: HashMap<u8, PspLibRequestDuration> = psp
         .request_durations

@@ -11,16 +11,17 @@ use crate::sources_load::{self, EvaluationAlgorithm, SourcesLoad};
 type Graph = petgraph::matrix_graph::MatrixGraph<u8, u8>;
 type NodeId = petgraph::matrix_graph::NodeIndex;
 
-pub struct DAG<'a> {
+pub struct DAG{ //pub struct DAG<'a> {
     durations: HashMap<NodeId, u8>,
     graph: Graph,
     nodes: HashMap<u8, NodeId>,
-    pub psp: &'a PspLibProblem,
+    pub psp: PspLibProblem, //&'a PspLibProblem,
     reduced_neighborhood: Vec<(usize, usize)>,
 }
 
-impl<'a> DAG<'a> {
-    pub fn new(psp: &'a PspLibProblem, swap_range: usize) -> Self {
+impl DAG{//impl<'a> DAG<'a> {
+    //pub fn new(psp: &'a PspLibProblem, swap_range: usize) -> Self {
+    pub fn new(psp: PspLibProblem, swap_range: usize) -> Self {
         // let mut graph = petgraph::graph::DiGraph::<u8, u8>::new();
         let mut graph = petgraph::matrix_graph::DiMatrix::<u8, u8>::new();
 
