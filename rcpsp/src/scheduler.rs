@@ -14,7 +14,7 @@ pub struct SchedulerOptions {
     pub tabu_list_size: u32,
     pub swap_range: u32,
     pub parallel: bool,
-    pub iter_since_best_reset: u32,
+    pub iter_since_best_reset: Option<u32>,
 }
 
 pub fn scheduler(psp: PspLibProblem, options: SchedulerOptions) {
@@ -42,9 +42,10 @@ pub fn scheduler(psp: PspLibProblem, options: SchedulerOptions) {
     // Select swap with highest execution time reduction
     //  Check if in tabu list
     let mut tabu_list = SimpleTabuList::new(psp.jobs, options.tabu_list_size as usize);
+    let mut best_tabu_list = tabu_list.clone();
 
     for _ in 0..options.number_of_iterations {
-        debug!("iter_since_best: {iter_since_best}");
+        debug!("iter_since_best: {iter_since_best} - best_execution_time: {best_execution_time}");
 
         if iter_since_best >= options.max_iter_since_best {
             debug!(
@@ -53,11 +54,13 @@ pub fn scheduler(psp: PspLibProblem, options: SchedulerOptions) {
             break;
         }
 
-        if reset_counter >= options.iter_since_best_reset {
-            debug!("did not find a better solution in {reset_counter} iterations, resetting tabu search back to currently best solution");
-            schedule = best_execution_schedule.clone();
-            reset_counter = 0;
-            tabu_list.prune();
+        if let Some(iter_since_best_reset) = options.iter_since_best_reset {
+            if reset_counter >= iter_since_best_reset {
+                debug!("did not find a better solution in {reset_counter} iterations, resetting tabu search back to currently best solution");
+                schedule = best_execution_schedule.clone();
+                reset_counter = 0;
+                tabu_list = best_tabu_list.clone();
+            }
         }
 
         let moves = dag.compute_reduced_neighborhood_moves(&schedule, options.swap_range as usize);
@@ -97,6 +100,9 @@ pub fn scheduler(psp: PspLibProblem, options: SchedulerOptions) {
         rated_moves.sort_by_key(|evaluated_move| evaluated_move.0);
         trace!("rated_moves: {rated_moves:?}");
 
+        iter_since_best += 1;
+        reset_counter += 1;
+
         if let Some(&highest_rated_move) = rated_moves.first() {
             let (execution_time, (i, j)) = highest_rated_move;
 
@@ -110,13 +116,11 @@ pub fn scheduler(psp: PspLibProblem, options: SchedulerOptions) {
             if execution_time < best_execution_time {
                 best_execution_time = execution_time;
                 best_execution_schedule = schedule.clone();
+                best_tabu_list = tabu_list.clone();
                 iter_since_best = 0;
                 reset_counter = 0;
             }
         }
-
-        iter_since_best += 1;
-        reset_counter += 1;
     }
 
     info!("best_execution_schedule: {best_execution_schedule:?}");

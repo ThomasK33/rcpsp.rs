@@ -67,8 +67,8 @@ pub struct Schedule {
     max_iter_since_best: u32,
     /// Number of iterations without finding an improved solution
     /// after which tabu search will begin at the initial solution again
-    #[clap(long, visible_alias = "isbr", default_value_t = 150)]
-    iter_since_best_reset: u32,
+    #[clap(long, visible_alias = "isbr")]
+    iter_since_best_reset: Option<u32>,
     /// Size of the simple tabu list. Ignored for the advanced tabu list.
     #[clap(long, visible_alias = "tls", default_value_t = 800)]
     tabu_list_size: u32,

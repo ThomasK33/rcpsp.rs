@@ -11,6 +11,7 @@ pub struct ListRecord {
     j: i32,
 }
 
+#[derive(Clone)]
 pub struct SimpleTabuList {
     /// Current index at tabu list. (circular buffer)
     cur_idx: usize,
