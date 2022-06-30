@@ -1,11 +1,9 @@
-use std::collections::{HashMap, HashSet};
+use hashbrown::{HashMap, HashSet};
 
 use log::trace;
 use petgraph::algo;
 use petgraph::visit::NodeIndexable;
 use psp_lib_parser::structs::PspLibProblem;
-
-use crate::sources_load::{self, EvaluationAlgorithm, SourcesLoad};
 
 // type Graph = petgraph::Graph<u8, u8>;
 // type NodeId = petgraph::graph::NodeIndex;
@@ -19,7 +17,6 @@ pub struct DAG<'a> {
     node_to_jobs: HashMap<NodeId, u8>,
     pub psp: &'a PspLibProblem,
 
-    // requests: HashMap<u8, (u8, u8, u8, u8)>,
     requests: HashMap<u8, Vec<u8>>,
 }
 
@@ -61,9 +58,9 @@ impl<'a> DAG<'a> {
         Self {
             durations,
             graph,
-            psp,
             job_to_nodes,
             node_to_jobs,
+            psp,
             requests,
         }
     }
@@ -238,82 +235,35 @@ impl<'a> DAG<'a> {
         }
 
         // Filter out infeasible moves, i.e. moves that violate a precedence relation
-        moves
-            .into_iter()
-            .filter(|(u, v)| {
-                // Check paths not existing from u to v and check paths not existing from u,
-                // u+1, u+2, ..., v-1 to v
-                let index_u = schedule.iter().position(|&node| node == *u);
-                let index_v = schedule.iter().position(|&node| node == *v);
+        let filer_op = |(u, v): &(u8, u8)| {
+            // Check paths not existing from u to v and check paths not existing from u,
+            // u+1, u+2, ..., v-1 to v
+            let index_u = schedule.iter().position(|&node| node == *u);
+            let index_v = schedule.iter().position(|&node| node == *v);
 
-                if let Some(index_u) = index_u {
-                    if let Some(index_v) = index_v {
-                        let start_index = index_u.min(index_v);
-                        let end_index = index_v.max(index_u);
+            if let Some(index_u) = index_u {
+                if let Some(index_v) = index_v {
+                    let start_index = index_u.min(index_v);
+                    let end_index = index_v.max(index_u);
 
-                        let nodes_between = &schedule[start_index..end_index + 1];
+                    let nodes_between = &schedule[start_index..end_index + 1];
 
-                        return nodes_between.iter().all(|node| {
-                            !(self.graph.has_edge(
-                                self.job_to_nodes[node],
-                                self.job_to_nodes[nodes_between.last().unwrap()],
-                            ) || self.graph.has_edge(
-                                self.job_to_nodes[nodes_between.first().unwrap()],
-                                self.job_to_nodes[node],
-                            ))
-                        });
-                    }
+                    return nodes_between.iter().all(|node| {
+                        !(self.graph.has_edge(
+                            self.job_to_nodes[node],
+                            self.job_to_nodes[nodes_between.last().unwrap()],
+                        ) || self.graph.has_edge(
+                            self.job_to_nodes[nodes_between.first().unwrap()],
+                            self.job_to_nodes[node],
+                        ))
+                    });
                 }
+            }
 
-                false
-            })
-            .collect()
-    }
-
-    pub fn evaluate_order(
-        &self,
-        forward_evaluation: bool,
-        algorithm: EvaluationAlgorithm,
-        solution: &[usize],
-    ) -> usize {
-        let number_of_resources = self.psp.resources.renewable;
-        let capacity_of_resources = vec![
-            self.psp.resource_availabilities.r1 as usize,
-            self.psp.resource_availabilities.r2 as usize,
-            self.psp.resource_availabilities.r3 as usize,
-            self.psp.resource_availabilities.r4 as usize,
-        ];
-
-        let _sources_load: Box<dyn SourcesLoad> = match algorithm {
-            EvaluationAlgorithm::CapacityResolution => Box::new(
-                sources_load::CapacityResolution::new(number_of_resources, capacity_of_resources),
-            ),
-            EvaluationAlgorithm::TimeResolution => Box::new(sources_load::TimeResolution::new(
-                number_of_resources,
-                capacity_of_resources,
-                (&self.psp.request_durations)
-                    .iter()
-                    .map(|duration| duration.duration as usize)
-                    .sum(),
-            )),
+            false
         };
 
-        let schedule_length: usize = 0;
-
-        for i in 0..self.psp.jobs {
-            let _start: usize = 0;
-
-            if let Some(&_activity_id) = solution.get(if forward_evaluation {
-                i
-            } else {
-                self.psp.jobs - i - 1
-            }) {
-                // TODO: Implement order evaluation
-                todo!("Implement order evaluation")
-            }
-        }
-
-        schedule_length
+        moves.into_iter().filter(filer_op).collect()
     }
 
     pub fn compute_execution_time(&self, schedule: &[u8]) -> usize {

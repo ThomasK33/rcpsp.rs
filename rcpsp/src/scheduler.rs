@@ -1,5 +1,6 @@
 use log::{debug, info, trace};
 use psp_lib_parser::structs::PspLibProblem;
+use rayon::prelude::*;
 
 use crate::{
     dag::DAG,
@@ -7,14 +8,15 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub struct SimpleScheduleOptions {
+pub struct SchedulerOptions {
     pub number_of_iterations: u32,
     pub max_iter_since_best: u32,
     pub tabu_list_size: u32,
     pub swap_range: u32,
+    pub parallel: bool,
 }
 
-pub fn simple_schedule(psp: PspLibProblem, options: SimpleScheduleOptions) {
+pub fn scheduler(psp: PspLibProblem, options: SchedulerOptions) {
     let dag = DAG::new(&psp);
 
     info!("lower bound: {:?}", dag.compute_lower_bound(false));
@@ -49,23 +51,28 @@ pub fn simple_schedule(psp: PspLibProblem, options: SimpleScheduleOptions) {
         trace!("moves: {moves:?}");
 
         // Perform swaps and after each swap reevaluate execution time
-        let mut rated_moves: Vec<(usize, (u8, u8))> = moves
-            .into_iter()
-            .map(|(job_a, job_b)| {
-                // Swap positions in slice
-                let schedule = schedule.clone();
+        let map_op = |(job_a, job_b)| {
+            // Swap positions in slice
+            let schedule = schedule.clone();
 
-                let index_a = schedule.iter().position(|&job| job == job_a).unwrap();
-                let index_b = schedule.iter().position(|&job| job == job_b).unwrap();
+            let index_a = schedule.iter().position(|&job| job == job_a).unwrap();
+            let index_b = schedule.iter().position(|&job| job == job_b).unwrap();
 
-                let mut schedule = schedule;
-                schedule.swap(index_a, index_b);
+            let mut schedule = schedule;
+            schedule.swap(index_a, index_b);
 
-                let execution_time = dag.compute_execution_time(&schedule);
+            let execution_time = dag.compute_execution_time(&schedule);
 
-                (execution_time, (job_a, job_b))
-            })
-            .collect();
+            (execution_time, (job_a, job_b))
+        };
+
+        let mut rated_moves: Vec<(usize, (u8, u8))> = {
+            if options.parallel {
+                moves.into_par_iter().map(map_op).collect()
+            } else {
+                moves.into_iter().map(map_op).collect()
+            }
+        };
         rated_moves.sort_by_key(|evaluated_move| evaluated_move.0);
         trace!("rated_moves: {rated_moves:?}");
 

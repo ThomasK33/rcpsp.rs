@@ -39,6 +39,10 @@ pub struct Schedule {
     #[clap(required = true, parse(from_os_str), min_values = 1)]
     input_files: Vec<PathBuf>,
 
+    /// Run scheduler multi-threaded
+    #[clap(long, short = 'p')]
+    parallel: bool,
+
     /// Type of the tabu list to be used
     #[clap(arg_enum, long, visible_alias = "mode", default_value_t = Mode::Simple)]
     tabu_list_mode: Mode,

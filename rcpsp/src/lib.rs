@@ -1,7 +1,5 @@
 pub mod dag;
-pub mod schedulers;
+pub mod scheduler;
 pub mod tabu_list;
 
-mod sources_load;
-
-mod psp_gen;
+pub use scheduler::scheduler;

@@ -7,6 +7,7 @@
 		"dedup",
 		"Deque",
 		"graphviz",
+		"hashbrown",
 		"makespan",
 		"misb",
 		"peekable",
