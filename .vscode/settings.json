@@ -8,6 +8,7 @@
 		"Deque",
 		"graphviz",
 		"hashbrown",
+		"isbr",
 		"makespan",
 		"misb",
 		"peekable",

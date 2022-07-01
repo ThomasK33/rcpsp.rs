@@ -192,50 +192,8 @@ impl<'a> DAG<'a> {
         schedule: &[u8],
         swap_range: usize,
     ) -> Vec<(u8, u8)> {
-        // Reduced neighborhood to initial solution depends on the neighborhood size
-        // parameter (swap range) and is an upper bound for move generation
-
-        let mut windows = schedule.windows(swap_range).peekable();
-
-        let mut moves = vec![];
-
-        while let Some(window) = windows.next() {
-            // Map each window to moves
-            if let Some(first) = window.first() {
-                let mut neighbors: Vec<(u8, u8)> = window
-                    .iter()
-                    .skip(1)
-                    .map(|neighbor| (*first.min(neighbor), *neighbor.max(first)))
-                    .collect();
-
-                moves.append(&mut neighbors);
-            }
-
-            // Special case for last window
-            if windows.peek().is_none() {
-                // Create smaller sub-windows with less elements than swap_range yet the
-                // possibility to yield valid moves
-
-                let mut last_window = window.to_vec();
-                last_window.append(&mut vec![0; swap_range as usize]);
-
-                for window in last_window.windows(swap_range) {
-                    if let Some(first) = window.first() {
-                        let mut neighbors: Vec<(u8, u8)> = window
-                            .iter()
-                            .skip(1)
-                            .filter(|neighbor| **neighbor != 0)
-                            .map(|neighbor| (*first.min(neighbor), *neighbor.max(first)))
-                            .collect();
-
-                        moves.append(&mut neighbors);
-                    }
-                }
-            }
-        }
-
         // Filter out infeasible moves, i.e. moves that violate a precedence relation
-        let filer_op = |(u, v): &(u8, u8)| {
+        let filter_op = |(u, v): &(u8, u8)| {
             // Check paths not existing from u to v and check paths not existing from u,
             // u+1, u+2, ..., v-1 to v
             let index_u = schedule.iter().position(|&node| node == *u);
@@ -263,7 +221,49 @@ impl<'a> DAG<'a> {
             false
         };
 
-        moves.into_iter().filter(filer_op).collect()
+        // Reduced neighborhood to initial solution depends on the neighborhood size
+        // parameter (swap range) and is an upper bound for move generation
+        let windows: Vec<&[u8]> = schedule.windows(swap_range).collect();
+
+        if let Some((&last_window, windows)) = windows.split_last() {
+            let all_moves = windows.into_iter().map_while(|&window: &&[u8]| {
+                if let Some(first) = window.first() {
+                    let neighbors: Vec<(u8, u8)> = window
+                        .into_iter()
+                        .skip(1)
+                        .map(|neighbor| (*first.min(neighbor), *neighbor.max(first)))
+                        .filter(filter_op)
+                        .collect();
+
+                    return Some(neighbors);
+                }
+
+                None
+            });
+
+            let mut last_window = last_window.to_vec();
+            last_window.append(&mut vec![0; swap_range as usize]);
+
+            let last_window_moves = last_window.windows(swap_range).map_while(|window| {
+                if let Some(first) = window.first() {
+                    let neighbors: Vec<(u8, u8)> = window
+                        .into_iter()
+                        .skip(1)
+                        .filter(|&neighbor| *neighbor != 0)
+                        .map(|neighbor| (*first.min(neighbor), *neighbor.max(first)))
+                        .filter(filter_op)
+                        .collect();
+
+                    return Some(neighbors);
+                }
+
+                None
+            });
+
+            all_moves.chain(last_window_moves).flatten().collect()
+        } else {
+            vec![]
+        }
     }
 
     pub fn compute_execution_time(&self, schedule: &[u8]) -> usize {
