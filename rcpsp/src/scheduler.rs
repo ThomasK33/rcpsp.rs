@@ -17,7 +17,12 @@ pub struct SchedulerOptions {
     pub iter_since_best_reset: Option<u32>,
 }
 
-pub fn scheduler(psp: PspLibProblem, options: SchedulerOptions) {
+pub struct OptimizedSchedule {
+    pub schedule: Vec<u8>,
+    pub duration: usize,
+}
+
+pub fn scheduler(psp: PspLibProblem, options: SchedulerOptions) -> OptimizedSchedule {
     let dag = DAG::new(&psp);
 
     info!("lower bound: {:?}", dag.compute_lower_bound(false));
@@ -116,4 +121,9 @@ pub fn scheduler(psp: PspLibProblem, options: SchedulerOptions) {
 
     info!("best_execution_schedule: {best_execution_schedule:?}");
     info!("best_execution_time: {best_execution_time}");
+
+    OptimizedSchedule {
+        schedule: best_execution_schedule,
+        duration: best_execution_time,
+    }
 }

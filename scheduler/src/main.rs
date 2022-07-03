@@ -23,6 +23,8 @@ pub enum Commands {
     Graph(Graph),
     /// Create a schedule for a given psp lib problem
     Schedule(Schedule),
+    /// Run benchmarks for scheduler
+    Benchmark(Benchmark),
 }
 
 #[derive(Debug, Parser)]
@@ -30,6 +32,14 @@ pub struct Graph {
     #[clap(required = true, parse(from_os_str))]
     psp_problem_file: PathBuf,
     #[clap(required = true, parse(from_os_str))]
+    output: PathBuf,
+}
+
+#[derive(Debug, Parser)]
+pub struct Benchmark {
+    #[clap(parse(from_os_str))]
+    psp_problem_file_folder: PathBuf,
+    #[clap(parse(from_os_str))]
     output: PathBuf,
 }
 
@@ -101,6 +111,7 @@ fn main() {
             output,
         }) => commands::graph(psp_problem_file, output),
         Commands::Schedule(schedule) => commands::schedule(schedule),
+        Commands::Benchmark(benchmark) => commands::benchmark(benchmark),
     } {
         error!("An error occurred: {}", err);
     }
