@@ -226,10 +226,10 @@ impl<'a> DAG<'a> {
         let windows: Vec<&[u8]> = schedule.windows(swap_range).collect();
 
         if let Some((&last_window, windows)) = windows.split_last() {
-            let all_moves = windows.into_iter().map_while(|&window: &&[u8]| {
+            let all_moves = windows.iter().map_while(|&window: &&[u8]| {
                 if let Some(first) = window.first() {
                     let neighbors: Vec<(u8, u8)> = window
-                        .into_iter()
+                        .iter()
                         .skip(1)
                         .map(|neighbor| (*first.min(neighbor), *neighbor.max(first)))
                         .filter(filter_op)
@@ -247,7 +247,7 @@ impl<'a> DAG<'a> {
             let last_window_moves = last_window.windows(swap_range).map_while(|window| {
                 if let Some(first) = window.first() {
                     let neighbors: Vec<(u8, u8)> = window
-                        .into_iter()
+                        .iter()
                         .skip(1)
                         .filter(|&neighbor| *neighbor != 0)
                         .map(|neighbor| (*first.min(neighbor), *neighbor.max(first)))
@@ -266,7 +266,7 @@ impl<'a> DAG<'a> {
         }
     }
 
-    pub fn compute_execution_time(&self, schedule: &[u8]) -> usize {
+    pub fn compute_execution_time(&self, schedule: &[u8], swap: Option<(u8, u8)>) -> usize {
         let mut resources: Vec<Vec<u32>> = vec![vec![0; self.compute_upper_bound()]; 4];
         let resource_limits = vec![
             self.psp.resource_availabilities.r1,
@@ -285,6 +285,18 @@ impl<'a> DAG<'a> {
         // The earliest start time for a job is: maximum(start time of all it's predecessors + their execution time)
 
         for job_id in schedule {
+            let job_id = &if let Some((i, j)) = swap {
+                if *job_id == i {
+                    j
+                } else if *job_id == j {
+                    i
+                } else {
+                    *job_id
+                }
+            } else {
+                *job_id
+            };
+
             let predecessors_node_ids = self.graph.neighbors_directed(
                 *self.job_to_nodes.get(job_id).unwrap(),
                 petgraph::EdgeDirection::Incoming,

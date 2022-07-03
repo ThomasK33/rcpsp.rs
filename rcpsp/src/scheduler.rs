@@ -31,7 +31,7 @@ pub fn scheduler(psp: PspLibProblem, options: SchedulerOptions) {
 
     info!("initial schedule: {schedule:?}");
 
-    let execution_time = dag.compute_execution_time(&schedule);
+    let execution_time = dag.compute_execution_time(&schedule, None);
     info!("execution_time: {execution_time}");
 
     let mut best_execution_time = execution_time;
@@ -68,16 +68,7 @@ pub fn scheduler(psp: PspLibProblem, options: SchedulerOptions) {
 
         // Perform swaps and after each swap reevaluate execution time
         let map_op = |(job_a, job_b)| {
-            // Swap positions in slice
-            let schedule = schedule.clone();
-
-            let index_a = schedule.iter().position(|&job| job == job_a).unwrap();
-            let index_b = schedule.iter().position(|&job| job == job_b).unwrap();
-
-            let mut schedule = schedule;
-            schedule.swap(index_a, index_b);
-
-            let execution_time = dag.compute_execution_time(&schedule);
+            let execution_time = dag.compute_execution_time(&schedule, Some((job_a, job_b)));
 
             (execution_time, (job_a, job_b))
         };
