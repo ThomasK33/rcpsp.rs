@@ -22,10 +22,10 @@ pub fn benchmark(benchmark: Benchmark) -> Result<()> {
                 scheduler(
                     psp,
                     scheduler::SchedulerOptions {
-                        number_of_iterations: 1500,
-                        max_iter_since_best: 750,
-                        tabu_list_size: 100,
-                        swap_range: 15,
+                        number_of_iterations: 4000,
+                        max_iter_since_best: 2000,
+                        tabu_list_size: 50,
+                        swap_range: 25,
                         parallel: true,
                         iter_since_best_reset: None,
                     },
@@ -33,7 +33,7 @@ pub fn benchmark(benchmark: Benchmark) -> Result<()> {
             )
         })
         .map(|(path, os)| (path, os.duration))
-        .map(|(path, duration)| format!("{path:?}: {duration}"))
+        .map(|(path, duration)| format!("{path:?}, {duration}"))
         .collect();
 
     std::fs::write(benchmark.output, scheduling_results.join("\n"))?;
