@@ -87,7 +87,7 @@ impl<'a> DAG<'a> {
 
         algo::all_simple_paths::<Vec<_>, _>(&self.graph, from, to, 0, None)
             .map(|path| {
-                let weight = path.iter().fold(0 as usize, |acc, node_index| {
+                let weight = path.iter().fold(0_usize, |acc, node_index| {
                     if let Some(weight) = self.durations.get(node_index) {
                         acc + (*weight) as usize
                     } else {
