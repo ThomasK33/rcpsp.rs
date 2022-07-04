@@ -4,6 +4,7 @@
 		"basedata",
 		"chumsky",
 		"clippy",
+		"Codespaces",
 		"dedup",
 		"Deque",
 		"graphviz",
