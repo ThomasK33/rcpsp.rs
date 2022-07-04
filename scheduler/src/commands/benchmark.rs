@@ -22,12 +22,12 @@ pub fn benchmark(benchmark: Benchmark) -> Result<()> {
                 scheduler(
                     psp,
                     scheduler::SchedulerOptions {
-                        number_of_iterations: 4000,
-                        max_iter_since_best: 2000,
-                        tabu_list_size: 50,
-                        swap_range: 25,
-                        parallel: true,
-                        iter_since_best_reset: None,
+                        number_of_iterations: benchmark.number_of_iterations,
+                        max_iter_since_best: benchmark.max_iter_since_best,
+                        tabu_list_size: benchmark.tabu_list_size,
+                        swap_range: benchmark.swap_range,
+                        parallel: benchmark.parallel,
+                        iter_since_best_reset: benchmark.iter_since_best_reset,
                     },
                 ),
             )

@@ -37,10 +37,33 @@ pub struct Graph {
 
 #[derive(Debug, Parser)]
 pub struct Benchmark {
+    /// Folder location containing a collection of PSP tasks
     #[clap(parse(from_os_str))]
     psp_problem_file_folder: PathBuf,
+    /// Output file to write schedule results in CSV format to
     #[clap(parse(from_os_str))]
     output: PathBuf,
+
+    /// Number of iterations after which the search process will be stopped.
+    #[clap(long, visible_alias = "noi", default_value_t = 4000)]
+    number_of_iterations: u32,
+    /// Maximal number of iterations without improving solution after which
+    /// diversification is called.
+    #[clap(long, visible_alias = "misb", default_value_t = 2000)]
+    max_iter_since_best: u32,
+    /// Number of iterations without finding an improved solution
+    /// after which tabu search will begin at the initial solution again
+    #[clap(long, visible_alias = "isbr")]
+    iter_since_best_reset: Option<u32>,
+    /// Size of the simple tabu list. Ignored for the advanced tabu list.
+    #[clap(long, visible_alias = "tls", default_value_t = 50)]
+    tabu_list_size: u32,
+    /// Maximal distance between swapped activities.
+    #[clap(long, visible_alias = "swr", default_value_t = 25)]
+    swap_range: u32,
+    /// Run scheduler multi-threaded
+    #[clap(long, short = 'p', action, default_value_t = true)]
+    parallel: bool,
 }
 
 #[derive(Debug, Parser)]
@@ -50,7 +73,7 @@ pub struct Schedule {
     input_files: Vec<PathBuf>,
 
     /// Run scheduler multi-threaded
-    #[clap(long, short = 'p')]
+    #[clap(long, short = 'p', action)]
     parallel: bool,
 
     /// Type of the tabu list to be used
