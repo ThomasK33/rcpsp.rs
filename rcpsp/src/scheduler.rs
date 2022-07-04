@@ -25,7 +25,9 @@ pub struct OptimizedSchedule {
 pub fn scheduler(psp: PspLibProblem, options: SchedulerOptions) -> OptimizedSchedule {
     let dag = DAG::new(&psp);
 
-    info!("lower bound: {:?}", dag.compute_lower_bound(false));
+    let lower_bound = dag.compute_lower_bound(false);
+    info!("lower bound: {lower_bound:?}");
+    let lower_bound = lower_bound.map(|lb| lb.0).unwrap_or(0);
 
     // Compute initial solution
     let mut schedule: Vec<u8> = dag
@@ -116,6 +118,11 @@ pub fn scheduler(psp: PspLibProblem, options: SchedulerOptions) -> OptimizedSche
                 iter_since_best = 0;
                 reset_counter = 0;
             }
+        }
+
+        if best_execution_time == lower_bound {
+            // Stop searching once we've found the "physically" best solution
+            break;
         }
     }
 

@@ -73,7 +73,7 @@ impl<'a> DAG<'a> {
             .fold(0, |acc, duration| acc + (duration.duration as usize))
     }
     /// Find the lower bound of execution time, based on the longest time in the graph
-    pub fn compute_lower_bound(&self, reversed: bool) -> Option<(u8, Vec<NodeId>)> {
+    pub fn compute_lower_bound(&self, reversed: bool) -> Option<(usize, Vec<NodeId>)> {
         let from = if !reversed {
             self.graph.from_index(0)
         } else {
@@ -87,9 +87,9 @@ impl<'a> DAG<'a> {
 
         algo::all_simple_paths::<Vec<_>, _>(&self.graph, from, to, 0, None)
             .map(|path| {
-                let weight = path.iter().fold(0, |acc, node_index| {
+                let weight = path.iter().fold(0 as usize, |acc, node_index| {
                     if let Some(weight) = self.durations.get(node_index) {
-                        acc + *weight
+                        acc + (*weight) as usize
                     } else {
                         acc
                     }
