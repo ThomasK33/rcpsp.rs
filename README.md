@@ -21,11 +21,11 @@ This operation will take a couple of minutes, after which one is ready to go.
 
 ### Local Installation
 
-- TODO: How to install rust
-
-- TODO: Recommend VS Code & recommended extension in the repo
+Follow the [official Rust language's getting started guide](https://www.rust-lang.org/learn/get-started) to set up Rust on your local machine.
 
 ## Testing
+
+One can execute a test suite by running:
 
 ```bash
 cargo test
@@ -33,19 +33,23 @@ cargo test
 
 ## Benchmarks
 
+One can perform Criterion benchmarks by executing:
+
 ```bash
 cargo bench
 ```
 
+The location of the generated report is: `target/criterion/report/index.html`.
+
 ## Running the scheduler binary
 
-To run the scheduler in debug mode, one should execute:
+To run the scheduler in debug mode, without LLVM optimizations applied, one should execute:
 
 ```bash
 cargo run -- schedule ./examples/j30.sm/j3045_10.sm --swr 15 --tls 100 --misb 1500 --noi 3000 -p -v
 ```
 
-To run a release build of the scheduler, one should:
+To run a release build of the scheduler, with LLVM optimizations on, one should:
 
 ```bash
 cargo run --release -- schedule ./examples/j30.sm/j3045_10.sm --swr 15 --tls 100 --misb 1500 --noi 3000 -p -v
@@ -57,7 +61,7 @@ One can evaluate the scheduler quality by running:
 cargo run --release -- benchmark ./examples/j30.sm ./j30_results.txt
 ```
 
-## Using the library
+<!-- ## Using the library
 
 Add the following line to your `Cargo.toml`-file's `[dependencies]` section:
 
@@ -71,7 +75,7 @@ Using the library:
 
 ```rust
 // TODO: Add an example of how to use the library
-```
+``` -->
 
 ## Resources
 
