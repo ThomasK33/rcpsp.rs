@@ -11,6 +11,7 @@ pub struct ListRecord {
     j: i32,
 }
 
+#[derive(Clone)]
 pub struct SimpleTabuList {
     /// Current index at tabu list. (circular buffer)
     cur_idx: usize,
@@ -34,7 +35,7 @@ impl SimpleTabuList {
 }
 
 impl TabuList for SimpleTabuList {
-    fn is_possible_move(&self, i: usize, j: usize, _move_type: super::MoveType) -> bool {
+    fn is_possible_move(&self, i: usize, j: usize) -> bool {
         if let Some(value) = self.tabu_search.get(i).and_then(|tsv| tsv.get(j)) {
             if !*value {
                 return true;
@@ -43,7 +44,7 @@ impl TabuList for SimpleTabuList {
         false
     }
 
-    fn add_turn_to_tabu_list(&mut self, i: usize, j: usize, _move_type: super::MoveType) {
+    fn add_turn_to_tabu_list(&mut self, i: usize, j: usize) {
         if let Some(tabu) = self.tabu.get_mut(self.cur_idx) {
             if tabu.i != -1 && tabu.j != -1 {
                 if let Some(ts) = self

@@ -14,10 +14,16 @@ pub fn schedule(schedule: Schedule) -> Result<()> {
         let psp = parse_psp_lib(contents.as_str())?;
         trace!("parsed psp: {psp:#?}");
 
-        rcpsp::schedulers::simple::simple_schedule(
+        rcpsp::scheduler::scheduler(
             psp,
-            schedule.tabu_list_size,
-            schedule.swap_range,
+            rcpsp::scheduler::SchedulerOptions {
+                number_of_iterations: schedule.number_of_iterations,
+                max_iter_since_best: schedule.max_iter_since_best,
+                tabu_list_size: schedule.tabu_list_size,
+                swap_range: schedule.swap_range,
+                parallel: schedule.parallel,
+                iter_since_best_reset: schedule.iter_since_best_reset,
+            },
         );
     }
 

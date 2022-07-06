@@ -2,7 +2,7 @@
 use std::path::PathBuf;
 
 use clap::{ArgEnum, Parser, Subcommand};
-use clap_verbosity_flag::Verbosity;
+use clap_verbosity_flag::{InfoLevel, Verbosity};
 use log::{debug, error};
 
 mod commands;
@@ -11,7 +11,7 @@ mod commands;
 /// RCPSP scheduler
 struct App {
     #[clap(flatten)]
-    verbose: Verbosity,
+    verbose: Verbosity<InfoLevel>,
 
     #[clap(subcommand)]
     command: Commands,
@@ -23,6 +23,8 @@ pub enum Commands {
     Graph(Graph),
     /// Create a schedule for a given psp lib problem
     Schedule(Schedule),
+    /// Run benchmarks for scheduler
+    Benchmark(Benchmark),
 }
 
 #[derive(Debug, Parser)]
@@ -34,10 +36,45 @@ pub struct Graph {
 }
 
 #[derive(Debug, Parser)]
+pub struct Benchmark {
+    /// Folder location containing a collection of PSP tasks
+    #[clap(parse(from_os_str))]
+    psp_problem_file_folder: PathBuf,
+    /// Output file to write schedule results in CSV format to
+    #[clap(parse(from_os_str))]
+    output: PathBuf,
+
+    /// Number of iterations after which the search process will be stopped.
+    #[clap(long, visible_alias = "noi", default_value_t = 4000)]
+    number_of_iterations: u32,
+    /// Maximal number of iterations without improving solution after which
+    /// diversification is called.
+    #[clap(long, visible_alias = "misb", default_value_t = 2000)]
+    max_iter_since_best: u32,
+    /// Number of iterations without finding an improved solution
+    /// after which tabu search will begin at the initial solution again
+    #[clap(long, visible_alias = "isbr")]
+    iter_since_best_reset: Option<u32>,
+    /// Size of the simple tabu list. Ignored for the advanced tabu list.
+    #[clap(long, visible_alias = "tls", default_value_t = 50)]
+    tabu_list_size: u32,
+    /// Maximal distance between swapped activities.
+    #[clap(long, visible_alias = "swr", default_value_t = 25)]
+    swap_range: u32,
+    /// Run scheduler multi-threaded
+    #[clap(long, short = 'p', action, default_value_t = true)]
+    parallel: bool,
+}
+
+#[derive(Debug, Parser)]
 pub struct Schedule {
     /// Instances data
     #[clap(required = true, parse(from_os_str), min_values = 1)]
     input_files: Vec<PathBuf>,
+
+    /// Run scheduler multi-threaded
+    #[clap(long, short = 'p', action)]
+    parallel: bool,
 
     /// Type of the tabu list to be used
     #[clap(arg_enum, long, visible_alias = "mode", default_value_t = Mode::Simple)]
@@ -61,28 +98,17 @@ pub struct Schedule {
     /// diversification is called.
     #[clap(long, visible_alias = "misb", default_value_t = 300)]
     max_iter_since_best: u32,
+    /// Number of iterations without finding an improved solution
+    /// after which tabu search will begin at the initial solution again
+    #[clap(long, visible_alias = "isbr")]
+    iter_since_best_reset: Option<u32>,
     /// Size of the simple tabu list. Ignored for the advanced tabu list.
     #[clap(long, visible_alias = "tls", default_value_t = 800)]
     tabu_list_size: u32,
-    /// Relative amount (0-1) of elements will be erased from the advanced tabu list
-    /// if diversification will be called.
-    #[clap(long, visible_alias = "rea", default_value_t = 0.3)]
-    randomize_erase_amount: f64,
-    /// Lifetime of the newly added swap move to the advanced tabu list.
-    #[clap(long, visible_alias = "swlf", default_value_t = 80)]
-    swap_life_factor: u32,
-    /// Lifetime of the newly added shift move to the advanced tabu list.
-    #[clap(long, visible_alias = "shlf", default_value_t = 120)]
-    shift_life_factor: u32,
+
     /// Maximal distance between swapped activities.
     #[clap(long, visible_alias = "swr", default_value_t = 60)]
     swap_range: u32,
-    /// Maximal number of activities which moved activity can go through.
-    #[clap(long, visible_alias = "shr", default_value_t = 0)]
-    shift_range: u32,
-    /// Number of performed swaps for every diversification.
-    #[clap(long, visible_alias = "ds", default_value_t = 10)]
-    diversification_swaps: u32,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, ArgEnum)]
@@ -108,6 +134,7 @@ fn main() {
             output,
         }) => commands::graph(psp_problem_file, output),
         Commands::Schedule(schedule) => commands::schedule(schedule),
+        Commands::Benchmark(benchmark) => commands::benchmark(benchmark),
     } {
         error!("An error occurred: {}", err);
     }
