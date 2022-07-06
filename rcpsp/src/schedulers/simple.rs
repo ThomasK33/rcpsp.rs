@@ -109,11 +109,15 @@ pub fn simple_schedule(psp: PspLibProblem, tabu_list_size: u32, swap_range: u32)
     //manege completed threads
     let mut counter=0;
     //let (new_schedule, schedule_id, schedule_time,id) = rx_main.recv().unwrap();
+
+
     for (new_schedule, schedule_id, schedule_time,id) in rx_main {
+        //message from thread arrived
         println!("Got in main: {},",id);
         println!("solution: {new_schedule:?}");
         println!("schedule_time: {schedule_time:?}, schedule_id:{schedule_id:?}, thread:{id:?}");
 
+        //process message
         if(schedule_time<=solution_times[schedule_id]){
             solutions[schedule_id]=new_schedule;
             solution_times[schedule_id]=schedule_time;
@@ -121,19 +125,20 @@ pub fn simple_schedule(psp: PspLibProblem, tabu_list_size: u32, swap_range: u32)
                 global_best_solution_time=schedule_time
             }
         }
-        /*
+
+        //send back new message
         { //make this scope more complex!
             txs[id].send((
-                solutions[id].clone(),
+                vec![],
                 id,
                 global_best_solution_time,
-                10,
+                0,
             )
             ).unwrap();
+            counter+=1;
         }
-        */
 
-        counter+=1;
+
         if counter>=thread_count{
             break;
         }
@@ -173,27 +178,33 @@ fn thread_body(
     tx: std::sync::mpsc::Sender<(Vec<u8>, usize, u8, usize)>,//schedule:Vec<u8>,schedule_number:usize,schedule_time,fake_thread_id
     rx: Receiver<(Vec<u8>,usize,u8,u16)>,//schedule:Vec<u8>,_schedule_id: usize, global_best_solution_time: u8, max_iterations: u16,
 ){
-    let (schedule, _schedule_id, global_best_solution_time, max_iterations) = rx.recv().unwrap();
-    println!("Got in Thread: ,{}",_schedule_id);
-
-    //dont pass schedule id?
-    let (new_schedule, schedule_id, schedule_time) = improve_schedule(
-        schedule,
-        _schedule_id,
-        global_best_solution_time,
-        max_iterations,
-
-        0,
-        swap_range as usize,
-        &dag,
-        tabu_list_size as usize,
+    let mut tabu_list: Box<dyn TabuList> = Box::new(simple_tabu_list::SimpleTabuList::new(
         total_job_number,
-    );
+        tabu_list_size,
+    ));
 
-    //for val in vals {
-    tx.send((new_schedule, schedule_id, schedule_time, fake_thread_id) ).unwrap();
-        //thread::sleep(Duration::from_secs(1));
-    //}
+    loop{
+        let (schedule, _schedule_id, global_best_solution_time, max_iterations) = rx.recv().unwrap();
+        if(max_iterations==0){break;}
+        println!("Got in Thread: ,{}",_schedule_id);
+
+        //dont pass schedule id?
+        let (new_schedule, schedule_id, schedule_time) = improve_schedule(
+            schedule,
+            _schedule_id,
+            global_best_solution_time,
+            max_iterations,
+
+            0,
+            swap_range as usize,
+            &dag,
+            tabu_list_size as usize,
+            total_job_number,
+            tabu_list.as_mut()
+        );
+
+        tx.send((new_schedule, schedule_id, schedule_time, fake_thread_id) ).unwrap();
+    }
 }
 //can be done by many threads parallel
 fn improve_schedule(
@@ -207,14 +218,10 @@ fn improve_schedule(
     dag: &DAG,
     tabu_list_size: usize,
     total_job_number: usize,
+    mut tabu_list: &mut dyn TabuList
 ) -> (Vec<u8>, usize, u8) {
     //schedule:Vec<u8>,schedule_number:usize,schedule_time
 
-    //transfer ownership in and out to reduce memory- intitalisation time???
-    let mut tabu_list: Box<dyn TabuList> = Box::new(simple_tabu_list::SimpleTabuList::new(
-        total_job_number,
-        tabu_list_size,
-    ));
     let mut best_swap: (usize, usize) = (0, 0);
     let mut best_time: u8 = 255;
 
