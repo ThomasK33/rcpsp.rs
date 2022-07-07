@@ -10,18 +10,19 @@ use psp_lib_parser::structs::PspLibProblem;
 type Graph = petgraph::matrix_graph::MatrixGraph<u8, u8>;
 type NodeId = petgraph::matrix_graph::NodeIndex;
 
-pub struct DAG<'a> {
+pub struct DAG{
     durations: HashMap<NodeId, u8>,
     graph: Graph,
     job_to_nodes: HashMap<u8, NodeId>,
     node_to_jobs: HashMap<NodeId, u8>,
-    pub psp: &'a PspLibProblem,
+    pub psp: PspLibProblem,
 
     requests: HashMap<u8, Vec<u8>>,
+    reduced_neighborhood: Vec<(usize, usize)>,
 }
 
-impl<'a> DAG<'a> {
-    pub fn new(psp: &'a PspLibProblem) -> Self {
+impl DAG{
+    pub fn new(psp: PspLibProblem, swap_range: usize) -> Self {
         // let mut graph = petgraph::graph::DiGraph::<u8, u8>::new();
         let mut graph = petgraph::matrix_graph::DiMatrix::<u8, u8>::new();
 
@@ -55,6 +56,18 @@ impl<'a> DAG<'a> {
             );
         }
 
+        let mut reduced_neighborhood: Vec<(usize, usize)> = Vec::new();
+        for delta in 1..swap_range + 1 {
+            //does not include first and last node (optimization)
+
+            if delta+1<=psp.jobs {
+                let mut temp: Vec<(usize, usize)> = (1..((psp.jobs - 1) - delta))
+                    .map(|i| (i, i + delta))
+                    .collect();
+                reduced_neighborhood.append(&mut temp);
+            }
+        }
+
         Self {
             durations,
             graph,
@@ -62,6 +75,7 @@ impl<'a> DAG<'a> {
             node_to_jobs,
             psp,
             requests,
+            reduced_neighborhood,
         }
     }
 
@@ -187,6 +201,29 @@ impl<'a> DAG<'a> {
         ranks
     }
 
+    //new version based on indices
+    pub fn filtered_reduced_neighborhood(&self, schedule: &Vec<u8>) -> Vec<&(usize, usize)> {
+        self.reduced_neighborhood
+            .iter()
+            .filter(|(u, v)| {
+                for x in *u..*v {
+                    if self.graph.has_edge(
+                        self.job_to_nodes[&schedule[*u]],
+                        self.job_to_nodes[&schedule[x+1]],
+                    ) || self.graph.has_edge(
+                        self.job_to_nodes[&schedule[x]],
+                        self.job_to_nodes[&schedule[*v]],
+                    ) {
+                        return false;
+                    }
+                }
+                true
+            })
+            //.map(|(a,b)| (*a,*b))
+            .collect()
+    }
+
+    //old version
     pub fn compute_reduced_neighborhood_moves(
         &self,
         schedule: &[u8],
@@ -266,7 +303,7 @@ impl<'a> DAG<'a> {
         }
     }
 
-    pub fn compute_execution_time(&self, schedule: &[u8], swap: Option<(u8, u8)>) -> usize {
+    pub fn compute_execution_time(&self, schedule: &[u8], swap: Option<&(usize, usize)>) -> usize {
         let mut resources: Vec<Vec<u32>> = vec![vec![0; self.compute_upper_bound()]; 4];
         let resource_limits = vec![
             self.psp.resource_availabilities.r1,
@@ -284,17 +321,18 @@ impl<'a> DAG<'a> {
         // Compute earliest start time for each task
         // The earliest start time for a job is: maximum(start time of all it's predecessors + their execution time)
 
-        for job_id in schedule {
-            let job_id = &if let Some((i, j)) = swap {
-                if *job_id == i {
-                    j
-                } else if *job_id == j {
-                    i
+        let (i,j)=swap.unwrap_or(&(0,0));
+        let (si, sj)=(&schedule[*i],&schedule[*j]);
+
+        for job_id1 in schedule {
+            let job_id = {
+                if job_id1 == si {
+                    sj
+                } else if job_id1 == sj {
+                    si
                 } else {
-                    *job_id
+                    job_id1
                 }
-            } else {
-                *job_id
             };
 
             let predecessors_node_ids = self.graph.neighbors_directed(
@@ -303,15 +341,13 @@ impl<'a> DAG<'a> {
             );
 
             let start_time = predecessors_node_ids
-                .map(|node_id| *self.node_to_jobs.get(&node_id).unwrap())
-                .map(|job_number| {
+                .map(|node_id| {
                     let duration = self
                         .durations
-                        .get(self.job_to_nodes.get(&job_number).unwrap())
+                        .get(&node_id)
                         .copied()
                         .unwrap_or(0) as usize;
-
-                    *start_times.get(&job_number).unwrap_or(&0) + duration
+                    *start_times.get(self.node_to_jobs.get(&node_id).unwrap()).unwrap_or(&0) + duration
                 })
                 .max();
 
