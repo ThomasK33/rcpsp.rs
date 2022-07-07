@@ -34,12 +34,24 @@ pub fn scheduler(psp: PspLibProblem, mut options: SchedulerOptions) -> Optimized
     //==========settings
     //options.swap_range=10;
     //options.tabu_list_size=40;
+    //options.parallel=false;
     let activity_number: usize=psp.jobs;
     let thread_count : usize={if options.parallel {8} else {1}};
     let schedule_count=thread_count; //using thread_id as schedule_id sometimes
 
     let improvement_partition = 10;
     let initial_iteration_multiplier = 2;
+
+    let mut improvement_iterartions = options.number_of_iterations/((thread_count as u32)*improvement_partition);
+    let mut initial_improvement_iterations= improvement_iterartions * initial_iteration_multiplier;
+    let mut improvements=improvement_partition-initial_iteration_multiplier;
+    let mut max_iterations_since=initial_improvement_iterations;
+    if !options.parallel{
+        improvement_iterartions=1;
+        initial_improvement_iterations=options.number_of_iterations;
+        improvments=0;
+        max_iterations_since=options.number_of_iterations;
+    }
 
     let improvement_iterartions = options.number_of_iterations/((thread_count as u32)*improvement_partition);
     let initial_improvement_iterations= improvement_iterartions * initial_iteration_multiplier;
@@ -116,7 +128,7 @@ pub fn scheduler(psp: PspLibProblem, mut options: SchedulerOptions) -> Optimized
             tabu_lists[schedule_id].clone(),
             global_best_solution_time,
             initial_improvement_iterations,
-            options.max_iter_since_best,
+            max_iterations_since,
         )).unwrap();
     }
 
@@ -184,7 +196,7 @@ pub fn scheduler(psp: PspLibProblem, mut options: SchedulerOptions) -> Optimized
                         tabu_lists[schedule_id].clone(),
                         global_best_solution_time,
                         improvement_iterartions,
-                        options.max_iter_since_best,
+                        max_iterations_since,
                     )).unwrap();
                 }
                 runnig_threads =thread_count;
