@@ -1,6 +1,6 @@
-use log::{debug, info};//, trace};
+use log::{debug, info, trace};
 use psp_lib_parser::structs::PspLibProblem;
-//use rayon::prelude::*;
+use rayon::prelude::*;
 
 use crate::{
     dag::DAG,
@@ -32,10 +32,10 @@ pub struct OptimizedSchedule {
 pub fn scheduler(psp: PspLibProblem, mut options: SchedulerOptions) -> OptimizedSchedule {
 
     //==========settings
-    options.swap_range=10;
-    options.tabu_list_size=40;
+    //options.swap_range=10;
+    //options.tabu_list_size=40;
     let activity_number: usize=psp.jobs;
-    let thread_count : usize=8;
+    let thread_count : usize={if options.parallel {8} else {1}};
     let schedule_count=thread_count; //using thread_id as schedule_id sometimes
 
     let improvement_partition = 10;
