@@ -1,18 +1,16 @@
-use log::{debug, info, trace};
+use log::{debug, info};
 use psp_lib_parser::structs::PspLibProblem;
-use rayon::prelude::*;
 
 use crate::{
     dag::DAG,
     tabu_list::{simple_tabu_list::SimpleTabuList, TabuList},
 };
 
-use rand::thread_rng;
 use rand::seq::SliceRandom;
-use std::sync::{Arc,mpsc};
+use rand::thread_rng;
 use std::sync::mpsc::{Receiver, Sender};
+use std::sync::{mpsc, Arc};
 use std::thread;
-//use std::time::Duration;
 
 #[derive(Debug, Clone)]
 pub struct SchedulerOptions {
@@ -30,35 +28,41 @@ pub struct OptimizedSchedule {
 }
 
 pub fn scheduler(psp: PspLibProblem, mut options: SchedulerOptions) -> OptimizedSchedule {
-
     //==========settings
-    options.number_of_iterations=4000;
+    options.number_of_iterations = 4000;
     //options.swap_range=10;
     //options.tabu_list_size=40;
     //options.parallel=false;
-    let activity_number: usize=psp.jobs;
-    let thread_count : usize={if options.parallel {8} else {1}};
-    let schedule_count=thread_count; //using thread_id as schedule_id sometimes
+    let activity_number: usize = psp.jobs;
+    let thread_count: usize = {
+        if options.parallel {
+            8
+        } else {
+            1
+        }
+    };
+    let schedule_count = thread_count; //using thread_id as schedule_id sometimes
 
     let improvement_partition = 10;
     let initial_iteration_multiplier = 2;
 
-    let mut improvement_iterartions = options.number_of_iterations/((thread_count as u32)*improvement_partition);
-    let mut initial_improvement_iterations= improvement_iterartions * initial_iteration_multiplier;
-    let mut improvements=improvement_partition-initial_iteration_multiplier;
-    let mut max_iterations_since=initial_improvement_iterations;
-    if !options.parallel{
-        improvement_iterartions=1;
-        initial_improvement_iterations=options.number_of_iterations;
-        improvements=0;
-        max_iterations_since=options.number_of_iterations;
+    let mut improvement_iterations =
+        options.number_of_iterations / ((thread_count as u32) * improvement_partition);
+    let mut initial_improvement_iterations = improvement_iterations * initial_iteration_multiplier;
+    let mut improvements = improvement_partition - initial_iteration_multiplier;
+    let mut max_iterations_since = initial_improvement_iterations;
+    if !options.parallel {
+        improvement_iterations = 1;
+        initial_improvement_iterations = options.number_of_iterations;
+        improvements = 0;
+        max_iterations_since = options.number_of_iterations;
     }
 
-    let divesification_iterations=20;
+    let diversification_iterations = 20;
 
     //==========initialization
 
-    let dag = DAG::new(psp, options.swap_range as usize);//15);
+    let dag = DAG::new(psp, options.swap_range as usize); //15);
 
     let lower_bound = dag.compute_lower_bound(false);
     info!("options: {options:?}");
@@ -72,20 +76,43 @@ pub fn scheduler(psp: PspLibProblem, mut options: SchedulerOptions) -> Optimized
     let schedule: Vec<u8> = job_execution_ranks.clone().into_iter().flatten().collect();
     let mut schedules: Vec<Vec<u8>> = vec![schedule];
 
-    let mut extra_inital_solutions: Vec<Vec<u8>> = (0..schedule_count-1).into_iter().map(|_| job_execution_ranks.clone().into_iter().map(|mut x| {x.shuffle(&mut thread_rng());x}).flatten().collect()).collect();
-    //let mut extra_inital_solutions: Vec<Vec<u8>> = (0..thread_count-1).into_iter().map(|_| job_execution_ranks.clone().into_iter()                                          .flatten().collect()).collect();
-    schedules.append(&mut extra_inital_solutions);
+    let mut extra_initial_solutions: Vec<Vec<u8>> = (0..schedule_count - 1)
+        .into_iter()
+        .map(|_| {
+            job_execution_ranks
+                .clone()
+                .into_iter()
+                .flat_map(|mut x| {
+                    x.shuffle(&mut thread_rng());
+                    x
+                })
+                .collect()
+        })
+        .collect();
+    //let mut extra_initial_solutions: Vec<Vec<u8>> = (0..thread_count-1).into_iter().map(|_| job_execution_ranks.clone().into_iter()                                          .flatten().collect()).collect();
+    schedules.append(&mut extra_initial_solutions);
     info!("initial_solution: {schedules:?}");
 
-    let mut schedule_times : Vec<usize> = schedules.iter().map(|s| dag.compute_execution_time(s, None)).collect();
-    let mut global_best_solution_time: usize = schedule_times.iter().min().unwrap().clone();
-    let mut global_best_solution_schedule: Vec<u8> = schedules.iter().map(|s| (s,dag.compute_execution_time(s, None))).min_by_key(|(_, time)| *time).unwrap().0.clone();
+    let mut schedule_times: Vec<usize> = schedules
+        .iter()
+        .map(|s| dag.compute_execution_time(s, None))
+        .collect();
+    let mut global_best_solution_time: usize = *schedule_times.iter().min().unwrap();
+    let mut global_best_solution_schedule: Vec<u8> = schedules
+        .iter()
+        .map(|s| (s, dag.compute_execution_time(s, None)))
+        .min_by_key(|(_, time)| *time)
+        .unwrap()
+        .0
+        .clone();
 
     info!("execution_times: {schedule_times:?}");
 
-    let mut tabu_lists: Vec<SimpleTabuList> = schedule_times.iter().map(|_| SimpleTabuList::new(activity_number, options.tabu_list_size as usize)).collect();
-    let empty_tabu=SimpleTabuList::new(0, 0);
-
+    let mut tabu_lists: Vec<SimpleTabuList> = schedule_times
+        .iter()
+        .map(|_| SimpleTabuList::new(activity_number, options.tabu_list_size as usize))
+        .collect();
+    let empty_tabu = SimpleTabuList::new(0, 0);
 
     //=================================
     //multi-thread-part
@@ -93,117 +120,113 @@ pub fn scheduler(psp: PspLibProblem, mut options: SchedulerOptions) -> Optimized
 
     //spawn threads
     let mut handles = vec![];
-    let dag_arc=Arc::new(dag);
+    let dag_arc = Arc::new(dag);
     let (tx_main, rx_main) = mpsc::channel();
     let mut txs = vec![];
 
     for id in 0..thread_count {
         let dag_arc = Arc::clone(&dag_arc);
-        let tx_main=tx_main.clone();
+        let tx_main = tx_main.clone();
         let (tx, rx) = mpsc::channel();
-        let handle = thread::spawn(move || {
-            thread_body(
-                lower_bound,
-                dag_arc,
-                id,
-                tx_main,
-                rx,
-            )
-        });
+        let handle = thread::spawn(move || thread_body(lower_bound, dag_arc, id, tx_main, rx));
         handles.push(handle);
         txs.push(tx);
     }
 
     //initial_improvements
-    for id in 0..thread_count {
-        let schedule_id=id;
+    for (id, txs_id) in txs.iter().enumerate().take(thread_count) {
         //using threads via messages
-        txs[id].send((
-            schedules[schedule_id].clone(),
-            schedule_times[schedule_id].clone(),
-            id, //using thread_id as schedule_id
-            tabu_lists[schedule_id].clone(),
-            global_best_solution_time,
-            initial_improvement_iterations,
-            max_iterations_since,
-        )).unwrap();
+        txs_id
+            .send((
+                schedules[id].clone(),
+                schedule_times[id],
+                id, //using thread_id as schedule_id
+                tabu_lists[id].clone(),
+                global_best_solution_time,
+                initial_improvement_iterations,
+                max_iterations_since,
+            ))
+            .unwrap();
     }
 
     //manage running/finished threads
-    let mut runnig_threads =thread_count;
-    let mut improvements_left=improvements;
+    let mut running_threads = thread_count;
+    let mut improvements_left = improvements;
     for (new_schedule, schedule_id, new_schedule_time, new_tabu_list, id) in rx_main {
         //let (new_schedule, schedule_id, schedule_time,id) = rx_main.recv().unwrap();
         //message from thread arrived
         debug!("Got in main: {}, schedule_time: {new_schedule_time:?}, schedule_id:{schedule_id:?}, thread:{id:?}, solution: {new_schedule:?} ",id);
 
         //process message
-        if new_schedule_time<=schedule_times[schedule_id] {
-            schedules[schedule_id]=new_schedule;
-            schedule_times[schedule_id]=new_schedule_time;
-            tabu_lists[schedule_id]=new_tabu_list;
+        if new_schedule_time <= schedule_times[schedule_id] {
+            schedules[schedule_id] = new_schedule;
+            schedule_times[schedule_id] = new_schedule_time;
+            tabu_lists[schedule_id] = new_tabu_list;
 
-            if schedule_times[schedule_id]<global_best_solution_time {
-                global_best_solution_time= schedule_times[schedule_id];
-                global_best_solution_schedule=schedules[schedule_id].clone();
+            if schedule_times[schedule_id] < global_best_solution_time {
+                global_best_solution_time = schedule_times[schedule_id];
+                global_best_solution_schedule = schedules[schedule_id].clone();
             }
         }
 
         //send back new message
-        runnig_threads -=1;
+        running_threads -= 1;
 
         //make this scope more complex! -- done
-        if runnig_threads == 0{
-            if improvements_left==0 || lower_bound==global_best_solution_time{
+        if running_threads == 0 {
+            if improvements_left == 0 || lower_bound == global_best_solution_time {
                 break;
-            }
-            else{
+            } else {
                 //all threads are collected already
-                    //ggez
+                //ggez
 
                 //sort schedules by time
-                let mut indices:Vec<usize> = (0..schedule_count).collect();
+                let mut indices: Vec<usize> = (0..schedule_count).collect();
                 indices.sort_by_key(|x| schedule_times[*x]);
 
-                //take  better half and put in second, ignore center for odd scheule_numbers
+                //take  better half and put in second, ignore center for odd schedule_numbers
                 //and diversify all replacing threads
-                for i in 0..(schedule_count/2){ //skips center if uneven, or everything if only one
-                    let from=indices[i];
-                    let to = indices[schedule_count-1-i];
+                for i in 0..(schedule_count / 2) {
+                    //skips center if uneven, or everything if only one
+                    let from = indices[i];
+                    let to = indices[schedule_count - 1 - i];
 
-                    schedules[to]=diversify_schedule(
+                    schedules[to] = diversify_schedule(
                         schedules[from].clone(),
-                        divesification_iterations,
-                        &dag_arc
+                        diversification_iterations,
+                        &dag_arc,
                     );
-                    schedule_times[to]=dag_arc.compute_execution_time(&schedules[to], None);
-                    tabu_lists[to]=tabu_lists[from].clone();
-
+                    schedule_times[to] = dag_arc.compute_execution_time(&schedules[to], None);
+                    tabu_lists[to] = tabu_lists[from].clone();
                 }
 
                 //run all threads again
-                debug!("improvments left: {}",improvements_left);
-                for id in 0..thread_count {
-                    let schedule_id=id;
-                    txs[id].send((
-                        schedules[schedule_id].clone(),
-                        schedule_times[schedule_id].clone(),
-                        schedule_id,
-                        tabu_lists[schedule_id].clone(),
-                        global_best_solution_time,
-                        improvement_iterartions,
-                        max_iterations_since,
-                    )).unwrap();
+                debug!("improvements left: {}", improvements_left);
+                for (id, txs_id) in txs.iter().enumerate().take(thread_count) {
+                    txs_id
+                        .send((
+                            schedules[id].clone(),
+                            schedule_times[id],
+                            id,
+                            tabu_lists[id].clone(),
+                            global_best_solution_time,
+                            improvement_iterations,
+                            max_iterations_since,
+                        ))
+                        .unwrap();
                 }
-                runnig_threads =thread_count;
+
+                running_threads = thread_count;
             }
-            improvements_left-=1;
+            improvements_left -= 1;
         }
     }
 
     //stop all threads with id
-    for id in 0..thread_count{
-        txs[id].send((vec![],0,id,empty_tabu.clone(),0,0,0,)).unwrap();
+    for (id, txs_id) in txs.iter().enumerate().take(thread_count) {
+        txs_id
+            .send((vec![], 0, id, empty_tabu.clone(), 0, 0, 0))
+            .unwrap();
     }
 
     //destroy/join threads
@@ -234,7 +257,6 @@ pub fn scheduler(psp: PspLibProblem, mut options: SchedulerOptions) -> Optimized
     info!("best_execution_time: {global_best_solution_time}");
     //info!("best_execution_time2: {}",dag.compute_execution_time(&best_execution_schedule, Some(&(1,2))));
 
-
     OptimizedSchedule {
         schedule: global_best_solution_schedule,
         duration: global_best_solution_time,
@@ -242,56 +264,73 @@ pub fn scheduler(psp: PspLibProblem, mut options: SchedulerOptions) -> Optimized
 }
 
 fn thread_body(
-    lower_bound: usize,            //u8 used for time for consistency
+    lower_bound: usize, //u8 used for time for consistency
     //swap_range: usize,
     dag: Arc<DAG>,
     //tabu_list_size: usize,
     //total_job_number: usize,
-    fake_thread_id:usize,
-    tx: Sender<(Vec<u8>, usize, usize, SimpleTabuList, usize)>,//schedule:Vec<u8>,schedule_number:usize,schedule_time,fake_thread_id
-    rx: Receiver<(Vec<u8>, usize, usize, SimpleTabuList, usize, u32, u32)>,//schedule,execution_time,_schedule_id,SimpleTabuLis, global_best_solution_time, max_iterations, number_of_iterations,max_iter_since_best
-){
-    loop{
-        let (schedule, schedule_time,_schedule_id, tabu_list, global_best_solution_time, number_of_iterations,max_iter_since_best) = rx.recv().unwrap();
-        if number_of_iterations==0{break;}
-        debug!("Got in Thread: ,{}",_schedule_id);
-
-        //dont pass schedule id?
-        let (new_schedule, schedule_id, new_schedule_time,new_tabu_list)=improve_schedule(
+    fake_thread_id: usize,
+    tx: Sender<(Vec<u8>, usize, usize, SimpleTabuList, usize)>, //schedule:Vec<u8>,schedule_number:usize,schedule_time,fake_thread_id
+    rx: Receiver<(Vec<u8>, usize, usize, SimpleTabuList, usize, u32, u32)>, //schedule,execution_time,_schedule_id,SimpleTabuLis, global_best_solution_time, max_iterations, number_of_iterations,max_iter_since_best
+) {
+    loop {
+        let (
             schedule,
             schedule_time,
-            _schedule_id,
+            schedule_id,
+            tabu_list,
+            global_best_solution_time,
+            number_of_iterations,
+            max_iter_since_best,
+        ) = rx.recv().unwrap();
+        if number_of_iterations == 0 {
+            break;
+        }
+        debug!("Got in Thread: ,{}", schedule_id);
+
+        //don't pass schedule id?
+        let (new_schedule, schedule_id, new_schedule_time, new_tabu_list) = improve_schedule(
+            schedule,
+            schedule_time,
+            schedule_id,
             global_best_solution_time,
             number_of_iterations,
             max_iter_since_best,
             lower_bound,
             &dag,
-            tabu_list
+            tabu_list,
         );
 
-        tx.send((new_schedule, schedule_id, new_schedule_time, new_tabu_list, fake_thread_id) ).unwrap();
+        tx.send((
+            new_schedule,
+            schedule_id,
+            new_schedule_time,
+            new_tabu_list,
+            fake_thread_id,
+        ))
+        .unwrap();
     }
 }
 
 fn improve_schedule(
     mut schedule: Vec<u8>,
-    schedule_time:usize,
-    _schedule_id: usize,
+    schedule_time: usize,
+    schedule_id: usize,
     mut global_best_solution_time: usize, //u8 probably to small for the durations
     max_iterations: u32,
-    max_iterations_since_best:u32,
+    max_iterations_since_best: u32,
 
-    critical_path_time: usize,            //used for time for consistency
+    critical_path_time: usize, //used for time for consistency
     dag: &DAG,
-    mut tabu_list: SimpleTabuList
+    mut tabu_list: SimpleTabuList,
 ) -> (Vec<u8>, usize, usize, SimpleTabuList) {
     //schedule:Vec<u8>,schedule_number:usize,schedule_time
 
-    let mut best_swap: &(usize, usize) = &(0, 0);
-    let mut best_time: usize = 100000; //value never used
+    let mut best_swap: &(usize, usize);
+    let mut best_time: usize; //value never used
 
     let mut best_schedule = schedule.clone();
-    let mut best_schedule_time= schedule_time;
+    let mut best_schedule_time = schedule_time;
     let mut last_best_iteration = 0;
     let mut best_tabu_list = tabu_list.clone();
 
@@ -315,7 +354,15 @@ fn improve_schedule(
             .min_by_key(|(_, time)| *time)
         {
             Some(result) => (best_swap, best_time) = result,
-            None => {println!("this_happened");return (best_schedule, _schedule_id, best_schedule_time, best_tabu_list)}, //no moves possible
+            None => {
+                println!("this_happened");
+                return (
+                    best_schedule,
+                    schedule_id,
+                    best_schedule_time,
+                    best_tabu_list,
+                );
+            } //no moves possible
         }
 
         //update schedule
@@ -327,17 +374,22 @@ fn improve_schedule(
         if best_time < global_best_solution_time {
             global_best_solution_time = best_time;
         }
-        if best_time <= best_schedule_time{
-            best_schedule=schedule.clone();
-            best_schedule_time=best_time;
-            debug!("called by dodo {} since_last {}, in thread/schedule: {}", best_time, _iteration-last_best_iteration, _schedule_id);
-            last_best_iteration=_iteration;
+        if best_time <= best_schedule_time {
+            best_schedule = schedule.clone();
+            best_schedule_time = best_time;
+            debug!(
+                "called by dodo {} since_last {}, in thread/schedule: {}",
+                best_time,
+                _iteration - last_best_iteration,
+                schedule_id
+            );
+            last_best_iteration = _iteration;
             best_tabu_list = tabu_list.clone();
         }
         //if (_iteration%(max_iterations/20))==0 {
         //    debug!("={}%=",5*_iteration/(max_iterations/20));
         //}
-        if _iteration-last_best_iteration>=max_iterations_since_best{
+        if _iteration - last_best_iteration >= max_iterations_since_best {
             debug!(
                 "did not find better move in {max_iterations_since_best} iterations, thus stopping search"
             );
@@ -351,20 +403,23 @@ fn improve_schedule(
             break;
         }
     }
-    (best_schedule, _schedule_id, best_schedule_time, best_tabu_list)
+    (
+        best_schedule,
+        schedule_id,
+        best_schedule_time,
+        best_tabu_list,
+    )
 }
 
-fn diversify_schedule(
-    mut schedule: Vec<u8>,
-    iterations: u32,
-    dag: &DAG
-) -> Vec<u8>{
-    for _ in 0..iterations{
-        let random_swap=**dag.filtered_reduced_neighborhood(&schedule).choose(&mut thread_rng()).unwrap_or(&&(0,0));
+fn diversify_schedule(mut schedule: Vec<u8>, iterations: u32, dag: &DAG) -> Vec<u8> {
+    for _ in 0..iterations {
+        let random_swap = **dag
+            .filtered_reduced_neighborhood(&schedule)
+            .choose(&mut thread_rng())
+            .unwrap_or(&&(0, 0));
         schedule.swap(random_swap.0, random_swap.1);
     }
     schedule
-
 }
 
 /*

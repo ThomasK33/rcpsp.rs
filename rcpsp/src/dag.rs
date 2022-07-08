@@ -10,7 +10,7 @@ use psp_lib_parser::structs::PspLibProblem;
 type Graph = petgraph::matrix_graph::MatrixGraph<u8, u8>;
 type NodeId = petgraph::matrix_graph::NodeIndex;
 
-pub struct DAG{
+pub struct DAG {
     durations: HashMap<NodeId, u8>,
     graph: Graph,
     job_to_nodes: HashMap<u8, NodeId>,
@@ -21,7 +21,7 @@ pub struct DAG{
     reduced_neighborhood: Vec<(usize, usize)>,
 }
 
-impl DAG{
+impl DAG {
     pub fn new(psp: PspLibProblem, swap_range: usize) -> Self {
         // let mut graph = petgraph::graph::DiGraph::<u8, u8>::new();
         let mut graph = petgraph::matrix_graph::DiMatrix::<u8, u8>::new();
@@ -60,7 +60,7 @@ impl DAG{
         for delta in 1..swap_range + 1 {
             //does not include first and last node (optimization)
 
-            if delta+1<=psp.jobs {
+            if delta < psp.jobs {
                 let mut temp: Vec<(usize, usize)> = (1..((psp.jobs - 1) - delta))
                     .map(|i| (i, i + delta))
                     .collect();
@@ -202,14 +202,14 @@ impl DAG{
     }
 
     //new version based on indices
-    pub fn filtered_reduced_neighborhood(&self, schedule: &Vec<u8>) -> Vec<&(usize, usize)> {
+    pub fn filtered_reduced_neighborhood(&self, schedule: &[u8]) -> Vec<&(usize, usize)> {
         self.reduced_neighborhood
             .iter()
             .filter(|(u, v)| {
                 for x in *u..*v {
                     if self.graph.has_edge(
                         self.job_to_nodes[&schedule[*u]],
-                        self.job_to_nodes[&schedule[x+1]],
+                        self.job_to_nodes[&schedule[x + 1]],
                     ) || self.graph.has_edge(
                         self.job_to_nodes[&schedule[x]],
                         self.job_to_nodes[&schedule[*v]],
@@ -321,8 +321,8 @@ impl DAG{
         // Compute earliest start time for each task
         // The earliest start time for a job is: maximum(start time of all it's predecessors + their execution time)
 
-        let (i,j)=swap.unwrap_or(&(0,0));
-        let (si, sj)=(&schedule[*i],&schedule[*j]);
+        let (i, j) = swap.unwrap_or(&(0, 0));
+        let (si, sj) = (&schedule[*i], &schedule[*j]);
 
         for job_id1 in schedule {
             let job_id = {
@@ -342,12 +342,11 @@ impl DAG{
 
             let start_time = predecessors_node_ids
                 .map(|node_id| {
-                    let duration = self
-                        .durations
-                        .get(&node_id)
-                        .copied()
-                        .unwrap_or(0) as usize;
-                    *start_times.get(self.node_to_jobs.get(&node_id).unwrap()).unwrap_or(&0) + duration
+                    let duration = self.durations.get(&node_id).copied().unwrap_or(0) as usize;
+                    *start_times
+                        .get(self.node_to_jobs.get(&node_id).unwrap())
+                        .unwrap_or(&0)
+                        + duration
                 })
                 .max();
 
