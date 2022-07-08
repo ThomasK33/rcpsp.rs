@@ -32,6 +32,7 @@ pub struct OptimizedSchedule {
 pub fn scheduler(psp: PspLibProblem, mut options: SchedulerOptions) -> OptimizedSchedule {
 
     //==========settings
+    options.number_of_iterations=4000;
     //options.swap_range=10;
     //options.tabu_list_size=40;
     //options.parallel=false;
@@ -49,13 +50,9 @@ pub fn scheduler(psp: PspLibProblem, mut options: SchedulerOptions) -> Optimized
     if !options.parallel{
         improvement_iterartions=1;
         initial_improvement_iterations=options.number_of_iterations;
-        improvments=0;
+        improvements=0;
         max_iterations_since=options.number_of_iterations;
     }
-
-    let improvement_iterartions = options.number_of_iterations/((thread_count as u32)*improvement_partition);
-    let initial_improvement_iterations= improvement_iterartions * initial_iteration_multiplier;
-    let improvements=improvement_partition-initial_iteration_multiplier;
 
     let divesification_iterations=20;
 
@@ -157,8 +154,7 @@ pub fn scheduler(psp: PspLibProblem, mut options: SchedulerOptions) -> Optimized
 
         //make this scope more complex! -- done
         if runnig_threads == 0{
-            improvements_left-=1;
-            if improvements_left<=0 || lower_bound==global_best_solution_time{
+            if improvements_left==0 || lower_bound==global_best_solution_time{
                 break;
             }
             else{
@@ -186,7 +182,7 @@ pub fn scheduler(psp: PspLibProblem, mut options: SchedulerOptions) -> Optimized
                 }
 
                 //run all threads again
-                println!("improvments left: {}",improvements_left);
+                debug!("improvments left: {}",improvements_left);
                 for id in 0..thread_count {
                     let schedule_id=id;
                     txs[id].send((
@@ -201,6 +197,7 @@ pub fn scheduler(psp: PspLibProblem, mut options: SchedulerOptions) -> Optimized
                 }
                 runnig_threads =thread_count;
             }
+            improvements_left-=1;
         }
     }
 
@@ -318,7 +315,7 @@ fn improve_schedule(
             .min_by_key(|(_, time)| *time)
         {
             Some(result) => (best_swap, best_time) = result,
-            None => {println!("this_happened");return (schedule, _schedule_id, 0, best_tabu_list)}, //no moves possible
+            None => {println!("this_happened");return (best_schedule, _schedule_id, best_schedule_time, best_tabu_list)}, //no moves possible
         }
 
         //update schedule
@@ -330,16 +327,16 @@ fn improve_schedule(
         if best_time < global_best_solution_time {
             global_best_solution_time = best_time;
         }
-        if best_time < best_schedule_time{
+        if best_time <= best_schedule_time{
             best_schedule=schedule.clone();
             best_schedule_time=best_time;
             debug!("called by dodo {} since_last {}, in thread/schedule: {}", best_time, _iteration-last_best_iteration, _schedule_id);
             last_best_iteration=_iteration;
             best_tabu_list = tabu_list.clone();
         }
-        if (_iteration%(max_iterations/20))==0 {
-            debug!("={}%=",5*_iteration/(max_iterations/20));
-        }
+        //if (_iteration%(max_iterations/20))==0 {
+        //    debug!("={}%=",5*_iteration/(max_iterations/20));
+        //}
         if _iteration-last_best_iteration>=max_iterations_since_best{
             debug!(
                 "did not find better move in {max_iterations_since_best} iterations, thus stopping search"
