@@ -1,6 +1,7 @@
 use anyhow::Result;
 use psp_lib_parser::parse_psp_lib;
 use rcpsp::scheduler;
+use std::time::Instant;
 
 use crate::Benchmark;
 
@@ -10,6 +11,9 @@ pub fn benchmark(benchmark: Benchmark) -> Result<()> {
     }
 
     let folder = benchmark.psp_problem_file_folder.read_dir()?;
+
+    let start = Instant::now();
+    let mut last_time=start.elapsed();
 
     let scheduling_results: Vec<String> = folder
         .map(|path| path.unwrap().path())
@@ -33,7 +37,12 @@ pub fn benchmark(benchmark: Benchmark) -> Result<()> {
             )
         })
         .map(|(path, os)| (path, os.duration))
-        .map(|(path, duration)| format!("{path:?}, {duration}"))
+        .map(|(path, duration)| {
+            let new_time = start.elapsed();
+            let elapsed=new_time-last_time;
+            last_time=new_time;
+            format!("{path:?}; {duration}; {elapsed:?}")
+        })
         .collect();
 
     std::fs::write(benchmark.output, scheduling_results.join("\n"))?;
