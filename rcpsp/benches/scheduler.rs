@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use psp_lib_parser::parse_psp_lib;
-use rcpsp::scheduler::SchedulerOptions;
+use rcpsp::scheduler::{rayon, SchedulerOptions, custom};
 
 struct BenchmarkSet<'a> {
     pub file: &'a str,
@@ -91,7 +91,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new(
                 format!(
-                    "scheduler_{}",
+                    "scheduler_rayon_{}",
                     if config.parallel {
                         "parallel"
                     } else {
@@ -101,7 +101,22 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 format!("{file}/{}", config.number_of_iterations),
             ),
             &config,
-            |b, config| b.iter(|| rcpsp::scheduler(psp.clone(), config.clone())),
+            |b, config| b.iter(|| rayon::scheduler(psp.clone(), config.clone())),
+        );
+        group.bench_with_input(
+            BenchmarkId::new(
+                format!(
+                    "scheduler_custom_{}",
+                    if config.parallel {
+                        "parallel"
+                    } else {
+                        "single"
+                    }
+                ),
+                format!("{file}/{}", config.number_of_iterations),
+            ),
+            &config,
+            |b, config| b.iter(|| custom::scheduler(psp.clone(), config.clone())),
         );
     }
     group.finish();

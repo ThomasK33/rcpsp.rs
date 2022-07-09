@@ -60,10 +60,13 @@ pub struct Benchmark {
     tabu_list_size: u32,
     /// Maximal distance between swapped activities.
     #[clap(long, visible_alias = "swr", default_value_t = 25)]
-    swap_range: u32,
+    swap_range: usize,
     /// Run scheduler multi-threaded
     #[clap(long, short = 'p', action, default_value_t = true)]
     parallel: bool,
+    /// Type of the tabu list to be used
+    #[clap(arg_enum, long, visible_alias = "algo", default_value_t = Algorithm::Rayon)]
+    algorithm: Algorithm,
 }
 
 #[derive(Debug, Parser)]
@@ -108,7 +111,11 @@ pub struct Schedule {
 
     /// Maximal distance between swapped activities.
     #[clap(long, visible_alias = "swr", default_value_t = 60)]
-    swap_range: u32,
+    swap_range: usize,
+
+    /// Type of the tabu list to be used
+    #[clap(arg_enum, long, visible_alias = "algo", default_value_t = Algorithm::Rayon)]
+    algorithm: Algorithm,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, ArgEnum)]
@@ -117,6 +124,14 @@ pub enum Mode {
     Simple,
     /// More sophisticated version of the tabu list is used.
     Advanced,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, ArgEnum)]
+pub enum Algorithm {
+    /// The rayon-based, single schedule version
+    Rayon,
+    // More sophisticated version of a parallel, multi schedule search
+    Custom,
 }
 
 fn main() {

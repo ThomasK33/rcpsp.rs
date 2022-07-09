@@ -10,18 +10,19 @@ use psp_lib_parser::structs::PspLibProblem;
 type Graph = petgraph::matrix_graph::MatrixGraph<u8, u8>;
 type NodeId = petgraph::matrix_graph::NodeIndex;
 
-pub struct DAG<'a> {
+pub struct DAG {
     durations: HashMap<NodeId, u8>,
     graph: Graph,
     job_to_nodes: HashMap<u8, NodeId>,
     node_to_jobs: HashMap<NodeId, u8>,
-    pub psp: &'a PspLibProblem,
+    pub psp: PspLibProblem,
 
     requests: HashMap<u8, Vec<u8>>,
+    reduced_neighborhood: Vec<(usize, usize)>,
 }
 
-impl<'a> DAG<'a> {
-    pub fn new(psp: &'a PspLibProblem) -> Self {
+impl DAG {
+    pub fn new(psp: PspLibProblem, swap_range: usize) -> Self {
         // let mut graph = petgraph::graph::DiGraph::<u8, u8>::new();
         let mut graph = petgraph::matrix_graph::DiMatrix::<u8, u8>::new();
 
@@ -55,6 +56,18 @@ impl<'a> DAG<'a> {
             );
         }
 
+        let mut reduced_neighborhood = Vec::new();
+        for delta in 1..swap_range + 1 {
+            //does not include first and last node (optimization)
+
+            if delta < psp.jobs {
+                let mut temp = (1..((psp.jobs - 1) - delta))
+                    .map(|i| (i, i + delta))
+                    .collect();
+                reduced_neighborhood.append(&mut temp);
+            }
+        }
+
         Self {
             durations,
             graph,
@@ -62,6 +75,7 @@ impl<'a> DAG<'a> {
             node_to_jobs,
             psp,
             requests,
+            reduced_neighborhood,
         }
     }
 
@@ -185,6 +199,27 @@ impl<'a> DAG<'a> {
         }
 
         ranks
+    }
+
+    pub fn filtered_reduced_neighborhood(&self, schedule: &[u8]) -> Vec<&(usize, usize)> {
+        self.reduced_neighborhood
+            .iter()
+            .filter(|(u, v)| {
+                for x in *u..*v {
+                    if self.graph.has_edge(
+                        self.job_to_nodes[&schedule[*u]],
+                        self.job_to_nodes[&schedule[x + 1]],
+                    ) || self.graph.has_edge(
+                        self.job_to_nodes[&schedule[x]],
+                        self.job_to_nodes[&schedule[*v]],
+                    ) {
+                        return false;
+                    }
+                }
+                true
+            })
+            //.map(|(a,b)| (*a,*b))
+            .collect()
     }
 
     pub fn compute_reduced_neighborhood_moves(

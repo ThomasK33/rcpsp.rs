@@ -7,23 +7,10 @@ use crate::{
     tabu_list::{simple_tabu_list::SimpleTabuList, TabuList},
 };
 
-#[derive(Debug, Clone)]
-pub struct SchedulerOptions {
-    pub number_of_iterations: u32,
-    pub max_iter_since_best: u32,
-    pub tabu_list_size: u32,
-    pub swap_range: u32,
-    pub parallel: bool,
-    pub iter_since_best_reset: Option<u32>,
-}
-
-pub struct OptimizedSchedule {
-    pub schedule: Vec<u8>,
-    pub duration: usize,
-}
+use super::{OptimizedSchedule, SchedulerOptions};
 
 pub fn scheduler(psp: PspLibProblem, options: SchedulerOptions) -> OptimizedSchedule {
-    let dag = DAG::new(&psp);
+    let dag = DAG::new(psp.clone(), options.swap_range);
 
     let lower_bound = dag.compute_lower_bound(false);
     info!("lower bound: {lower_bound:?}");

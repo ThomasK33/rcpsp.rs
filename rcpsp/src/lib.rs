@@ -3,4 +3,3 @@ pub mod scheduler;
 pub mod tabu_list;
 
 pub use psp_lib_parser::structs::PspLibProblem;
-pub use scheduler::scheduler;

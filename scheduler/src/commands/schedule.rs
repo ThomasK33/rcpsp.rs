@@ -3,6 +3,7 @@ use std::fs;
 use anyhow::Result;
 use log::trace;
 use psp_lib_parser::parse_psp_lib;
+use rcpsp::scheduler::{custom, rayon};
 
 use crate::Schedule;
 
@@ -14,7 +15,12 @@ pub fn schedule(schedule: Schedule) -> Result<()> {
         let psp = parse_psp_lib(contents.as_str())?;
         trace!("parsed psp: {psp:#?}");
 
-        rcpsp::scheduler::scheduler(
+        let scheduler = match schedule.algorithm {
+            crate::Algorithm::Rayon => rayon::scheduler,
+            crate::Algorithm::Custom => custom::scheduler,
+        };
+
+        scheduler(
             psp,
             rcpsp::scheduler::SchedulerOptions {
                 number_of_iterations: schedule.number_of_iterations,
