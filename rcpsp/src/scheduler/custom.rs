@@ -51,6 +51,7 @@ pub fn scheduler(psp: PspLibProblem, mut options: SchedulerOptions) -> Optimized
     let dag = DAG::new(psp, options.swap_range as usize);
 
     let lower_bound = dag.compute_lower_bound(false);
+    info!("lower_bound: {lower_bound:?}");
     info!("options: {options:?}");
     let lower_bound = lower_bound.map(|lb| lb.0).unwrap_or(0);
 
