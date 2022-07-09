@@ -23,7 +23,7 @@ pub enum Commands {
     Graph(Graph),
     /// Create a schedule for a given psp lib problem
     Schedule(Schedule),
-    /// Run benchmarks for scheduler
+    /// Run benchmarks and result evaluations for scheduler
     Benchmark(Benchmark),
 }
 
@@ -64,7 +64,7 @@ pub struct Benchmark {
     /// Run scheduler multi-threaded
     #[clap(long, short = 'p', action, default_value_t = true)]
     parallel: bool,
-    /// Type of the tabu list to be used
+    /// Type of the scheduling algorithm to use
     #[clap(arg_enum, long, visible_alias = "algo", default_value_t = Algorithm::Rayon)]
     algorithm: Algorithm,
 }
@@ -82,16 +82,6 @@ pub struct Schedule {
     /// Type of the tabu list to be used
     #[clap(arg_enum, long, visible_alias = "mode", default_value_t = Mode::Simple)]
     tabu_list_mode: Mode,
-
-    /// If you want to write makespan criterion graph (independent variable is
-    /// number of iterations)
-    #[clap(long, visible_alias = "wmg")]
-    write_makespan_graph: bool,
-
-    /// Add this option if you want to write a file with the best schedule.
-    /// This file is binary.
-    #[clap(long, visible_alias = "wrf")]
-    write_result_file: bool,
 
     /// Number of iterations after which the search process will be stopped.
     #[clap(long, visible_alias = "noi", default_value_t = 1000)]
@@ -113,8 +103,8 @@ pub struct Schedule {
     #[clap(long, visible_alias = "swr", default_value_t = 60)]
     swap_range: usize,
 
-    /// Type of the tabu list to be used
-    #[clap(arg_enum, long, visible_alias = "algo", default_value_t = Algorithm::Rayon)]
+    /// Type of the scheduling algorithm to use
+    #[clap(arg_enum, long, visible_alias = "algo", default_value_t = Algorithm::default())]
     algorithm: Algorithm,
 }
 
@@ -122,15 +112,17 @@ pub struct Schedule {
 pub enum Mode {
     /// The simple version of the tabu list is used.
     Simple,
-    /// More sophisticated version of the tabu list is used.
-    Advanced,
+    // /// More sophisticated version of the tabu list is used.
+    // Advanced,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, ArgEnum)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, ArgEnum, Default)]
 pub enum Algorithm {
-    /// The rayon-based, single schedule version
+    /// Rayon-based, single schedule search
+    #[default]
     Rayon,
-    // More sophisticated version of a parallel, multi schedule search
+    /// More sophisticated version of a parallel, multi schedule search
+    /// using custom thread implementation
     Custom,
 }
 

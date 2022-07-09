@@ -5,6 +5,7 @@
 		"chumsky",
 		"clippy",
 		"Codespaces",
+		"cpus",
 		"dedup",
 		"Deque",
 		"graphviz",
@@ -22,5 +23,5 @@
 		"tard",
 		"thiserror"
 	],
-	// "testExplorer.useNativeTesting": true
+	"testExplorer.useNativeTesting": true
 }

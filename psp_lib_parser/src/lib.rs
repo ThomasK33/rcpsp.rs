@@ -322,7 +322,7 @@ mod tests {
         let metadata_parser = file_metadata_parser.ignore_then(metadata_parser);
 
         let meta = metadata_parser.parse(TEST_FILE);
-        dbg!(&meta);
+        // dbg!(&meta);
         assert!(meta.is_ok());
     }
 
@@ -336,7 +336,7 @@ mod tests {
             .ignore_then(project_info_parser);
 
         let meta = project_info_parser.parse(TEST_FILE);
-        dbg!(&meta);
+        // dbg!(&meta);
         assert!(meta.is_ok());
     }
 
@@ -352,7 +352,7 @@ mod tests {
             .ignore_then(precedence_relation_parser);
 
         let meta = parser.parse(TEST_FILE);
-        dbg!(&meta);
+        // dbg!(&meta);
         assert!(meta.is_ok());
     }
 
@@ -372,7 +372,7 @@ mod tests {
             .ignore_then(resource_availability_parser);
 
         let meta = parser.parse(TEST_FILE);
-        dbg!(&meta);
+        // dbg!(&meta);
         assert!(meta.is_ok());
     }
 
@@ -384,7 +384,7 @@ mod tests {
         let parser = parser.then(crate::project_info_parser());
 
         let meta = parser.parse(TEST_FILE);
-        dbg!(&meta);
+        // dbg!(&meta);
         assert!(meta.is_ok());
     }
 
@@ -392,7 +392,7 @@ mod tests {
     fn parse_psp_lib_test() {
         let output = parse_psp_lib(TEST_FILE);
 
-        dbg!(&output);
+        // dbg!(&output);
         assert!(output.is_ok());
     }
 

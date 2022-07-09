@@ -37,12 +37,12 @@ pub fn scheduler(psp: PspLibProblem, mut options: SchedulerOptions) -> Optimized
         options.number_of_iterations / ((thread_count as u32) * improvement_partition);
     let mut initial_improvement_iterations = improvement_iterations * initial_iteration_multiplier;
     let mut improvements = improvement_partition - initial_iteration_multiplier;
-    let mut max_iterations_since = initial_improvement_iterations;
+    let mut max_iter_since_best = initial_improvement_iterations;
     if !options.parallel {
         improvement_iterations = 1;
         initial_improvement_iterations = options.number_of_iterations;
         improvements = 0;
-        max_iterations_since = options.number_of_iterations;
+        max_iter_since_best = options.number_of_iterations;
     }
 
     let diversification_iterations = 20;
@@ -124,22 +124,29 @@ pub fn scheduler(psp: PspLibProblem, mut options: SchedulerOptions) -> Optimized
     for (id, txs_id) in txs.iter().enumerate().take(thread_count) {
         //using threads via messages
         txs_id
-            .send((
-                schedules[id].clone(),
-                schedule_times[id],
-                id, //using thread_id as schedule_id
-                tabu_lists[id].clone(),
+            .send(ThreadInfo {
+                schedule: schedules[id].clone(),
+                schedule_time: schedule_times[id],
+                schedule_id: id, //using thread_id as schedule_id
+                tabu_list: tabu_lists[id].clone(),
                 global_best_solution_time,
-                initial_improvement_iterations,
-                max_iterations_since,
-            ))
+                number_of_iterations: initial_improvement_iterations,
+                max_iter_since_best,
+            })
             .unwrap();
     }
 
     //manage running/finished threads
     let mut running_threads = thread_count;
     let mut improvements_left = improvements;
-    for (new_schedule, schedule_id, new_schedule_time, new_tabu_list, id) in rx_main {
+    for ThreadData {
+        new_schedule,
+        schedule_id,
+        new_schedule_time,
+        new_tabu_list,
+        id,
+    } in rx_main
+    {
         //let (new_schedule, schedule_id, schedule_time,id) = rx_main.recv().unwrap();
         //message from thread arrived
         debug!("Got in main: {}, schedule_time: {new_schedule_time:?}, schedule_id:{schedule_id:?}, thread:{id:?}, solution: {new_schedule:?} ",id);
@@ -191,15 +198,15 @@ pub fn scheduler(psp: PspLibProblem, mut options: SchedulerOptions) -> Optimized
                 debug!("improvements left: {}", improvements_left);
                 for (id, txs_id) in txs.iter().enumerate().take(thread_count) {
                     txs_id
-                        .send((
-                            schedules[id].clone(),
-                            schedule_times[id],
-                            id,
-                            tabu_lists[id].clone(),
+                        .send(ThreadInfo {
+                            schedule: schedules[id].clone(),
+                            schedule_time: schedule_times[id],
+                            schedule_id: id,
+                            tabu_list: tabu_lists[id].clone(),
                             global_best_solution_time,
-                            improvement_iterations,
-                            max_iterations_since,
-                        ))
+                            number_of_iterations: improvement_iterations,
+                            max_iter_since_best,
+                        })
                         .unwrap();
                 }
 
@@ -212,7 +219,15 @@ pub fn scheduler(psp: PspLibProblem, mut options: SchedulerOptions) -> Optimized
     //stop all threads with id
     for (id, txs_id) in txs.iter().enumerate().take(thread_count) {
         txs_id
-            .send((vec![], 0, id, empty_tabu.clone(), 0, 0, 0))
+            .send(ThreadInfo {
+                schedule: vec![],
+                schedule_time: 0,
+                schedule_id: id,
+                tabu_list: empty_tabu.clone(),
+                global_best_solution_time: 0,
+                number_of_iterations: 0,
+                max_iter_since_best: 0,
+            })
             .unwrap();
     }
 
@@ -235,18 +250,33 @@ pub fn scheduler(psp: PspLibProblem, mut options: SchedulerOptions) -> Optimized
     }
 }
 
+struct ThreadInfo {
+    schedule: Vec<u8>,
+    schedule_time: usize,
+    schedule_id: usize,
+    tabu_list: SimpleTabuList,
+    global_best_solution_time: usize,
+    number_of_iterations: u32,
+    max_iter_since_best: u32,
+}
+
+struct ThreadData {
+    new_schedule: Vec<u8>,
+    schedule_id: usize,
+    new_schedule_time: usize,
+    new_tabu_list: SimpleTabuList,
+    id: usize,
+}
+
 fn thread_body(
-    lower_bound: usize, //u8 used for time for consistency
-    //swap_range: usize,
+    lower_bound: usize,
     dag: Arc<DAG>,
-    //tabu_list_size: usize,
-    //total_job_number: usize,
     fake_thread_id: usize,
-    tx: Sender<(Vec<u8>, usize, usize, SimpleTabuList, usize)>, //schedule:Vec<u8>,schedule_number:usize,schedule_time,fake_thread_id
-    rx: Receiver<(Vec<u8>, usize, usize, SimpleTabuList, usize, u32, u32)>, //schedule,execution_time,_schedule_id,SimpleTabuLis, global_best_solution_time, max_iterations, number_of_iterations,max_iter_since_best
+    tx: Sender<ThreadData>,
+    rx: Receiver<ThreadInfo>,
 ) {
     loop {
-        let (
+        let ThreadInfo {
             schedule,
             schedule_time,
             schedule_id,
@@ -254,49 +284,64 @@ fn thread_body(
             global_best_solution_time,
             number_of_iterations,
             max_iter_since_best,
-        ) = rx.recv().unwrap();
+        } = rx.recv().unwrap();
         if number_of_iterations == 0 {
             break;
         }
         debug!("Got in Thread: ,{}", schedule_id);
 
         //don't pass schedule id?
-        let (new_schedule, schedule_id, new_schedule_time, new_tabu_list) = improve_schedule(
-            schedule,
-            schedule_time,
-            schedule_id,
-            global_best_solution_time,
-            number_of_iterations,
-            max_iter_since_best,
-            lower_bound,
-            &dag,
-            tabu_list,
-        );
+        let (new_schedule, schedule_id, new_schedule_time, new_tabu_list) =
+            improve_schedule(ImproveScheduleArguments {
+                schedule,
+                schedule_time,
+                schedule_id,
+                global_best_solution_time,
+                max_iterations: number_of_iterations,
+                max_iterations_since_best: max_iter_since_best,
+                critical_path_time: lower_bound,
+                dag: &dag,
+                tabu_list,
+            });
 
-        tx.send((
+        tx.send(ThreadData {
             new_schedule,
             schedule_id,
             new_schedule_time,
             new_tabu_list,
-            fake_thread_id,
-        ))
+            id: fake_thread_id,
+        })
         .unwrap();
     }
 }
 
-fn improve_schedule(
-    mut schedule: Vec<u8>,
+struct ImproveScheduleArguments<'a> {
+    schedule: Vec<u8>,
     schedule_time: usize,
     schedule_id: usize,
-    mut global_best_solution_time: usize, //u8 probably to small for the durations
+    global_best_solution_time: usize, //u8 probably to small for the durations
     max_iterations: u32,
     max_iterations_since_best: u32,
 
     critical_path_time: usize, //used for time for consistency
-    dag: &DAG,
-    mut tabu_list: SimpleTabuList,
-) -> (Vec<u8>, usize, usize, SimpleTabuList) {
+    dag: &'a DAG,
+    tabu_list: SimpleTabuList,
+}
+
+fn improve_schedule(args: ImproveScheduleArguments) -> (Vec<u8>, usize, usize, SimpleTabuList) {
     //schedule:Vec<u8>,schedule_number:usize,schedule_time
+
+    let ImproveScheduleArguments {
+        mut schedule,
+        schedule_time,
+        schedule_id,
+        mut global_best_solution_time,
+        max_iterations,
+        max_iterations_since_best,
+        critical_path_time,
+        dag,
+        mut tabu_list,
+    } = args;
 
     let mut best_swap: &(usize, usize);
     let mut best_time: usize; //value never used
