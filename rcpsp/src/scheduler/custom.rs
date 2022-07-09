@@ -316,7 +316,10 @@ fn improve_schedule(
             .map(|swap| {
                 (
                     swap,
-                    dag.compute_execution_time(&schedule, Some(((*swap).0 as u8, (*swap).1 as u8))),
+                    dag.compute_execution_time(
+                        &schedule,
+                        Some((schedule[swap.0], schedule[swap.1])),
+                    ),
                 )
             })
             //filter for not in tabu list, or global best
