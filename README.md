@@ -31,6 +31,17 @@ One can execute a test suite by running:
 cargo test
 ```
 
+## Graph Visualization
+
+To visualize the PSP Lib problem as a graph, one needs to have previously installed [graphviz](https://graphviz.org/).
+
+One can generate a graph using:
+
+```bash
+cargo run -- graph ./examples/file_name.sm ./file_name.dot
+dot -Tpng file_name.dot > file_name.png
+```
+
 ## Benchmarks
 
 One can perform Criterion benchmarks by executing:
@@ -52,13 +63,20 @@ cargo run -- schedule ./examples/j30.sm/j3045_10.sm --swr 15 --tls 100 --misb 15
 To run a release build of the scheduler, with LLVM optimizations on, one should:
 
 ```bash
-cargo run --release -- schedule ./examples/j30.sm/j3045_10.sm --swr 15 --tls 100 --misb 1500 --noi 3000 -p -v
+cargo run --release -- schedule ./examples/j30.sm/j3045_10.sm --swr 15 --tls 100 --misb 1500 --noi 3000 -p
+```
+
+To run a release build of the scheduler using an alternative scheduling algorithm, with LLVM optimizations on, one should:
+
+```bash
+cargo run --release -- schedule ./examples/j30.sm/j3045_10.sm --swr 15 --tls 100 --misb 1500 --noi 3000 -p --algo custom
 ```
 
 One can evaluate the scheduler quality by running:
 
 ```bash
-cargo run --release -- benchmark ./examples/j30.sm ./j30_results.txt
+cargo run --release -- benchmark ./examples/j30.sm ./j30_results.csv
+cargo run --release -- benchmark ./examples/j30.sm ./j30_results_custom.csv --algo custom
 ```
 
 <!-- ## Using the library
