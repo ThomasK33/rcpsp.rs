@@ -11,6 +11,7 @@ pub struct SchedulerOptions {
     pub parallel: bool,
     pub iter_since_best_reset: Option<u32>,
     pub schedule_count: u32,
+    pub schedule_duration: Option<u64>,
 }
 
 pub struct OptimizedSchedule {

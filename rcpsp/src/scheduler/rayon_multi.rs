@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use log::{debug, info};
 use psp_lib_parser::structs::PspLibProblem;
 use rand::{prelude::SliceRandom, thread_rng};
@@ -64,6 +66,8 @@ pub fn scheduler(psp: PspLibProblem, options: SchedulerOptions) -> OptimizedSche
 
     let mut best_global_duration = usize::MAX;
     let mut iter_since_best = 0;
+
+    let start_time = Instant::now();
 
     // Select swap with highest execution time reduction
     //  Check if in tabu list
@@ -181,8 +185,15 @@ pub fn scheduler(psp: PspLibProblem, options: SchedulerOptions) -> OptimizedSche
         }
 
         if best_global_duration == lower_bound {
-            // Stop searching once we've found the "physically" best solution
+            info!("Stopping search as lower bound has been reached");
             break;
+        }
+
+        if let Some(schedule_duration) = options.schedule_duration {
+            if start_time.elapsed().as_secs() > schedule_duration {
+                info!("Stopping search as time limit has passed");
+                break;
+            }
         }
     }
 

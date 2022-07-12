@@ -24,6 +24,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 iter_since_best_reset: None,
                 parallel: false,
                 schedule_count: 10,
+                schedule_duration: None,
             },
         },
         BenchmarkSet {
@@ -36,6 +37,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 iter_since_best_reset: None,
                 parallel: true,
                 schedule_count: 10,
+                schedule_duration: None,
             },
         },
         BenchmarkSet {
@@ -48,6 +50,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 iter_since_best_reset: None,
                 parallel: false,
                 schedule_count: 10,
+                schedule_duration: None,
             },
         },
         BenchmarkSet {
@@ -60,6 +63,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 iter_since_best_reset: None,
                 parallel: true,
                 schedule_count: 10,
+                schedule_duration: None,
             },
         },
         BenchmarkSet {
@@ -72,6 +76,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 iter_since_best_reset: None,
                 parallel: false,
                 schedule_count: 10,
+                schedule_duration: None,
             },
         },
         BenchmarkSet {
@@ -84,6 +89,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 iter_since_best_reset: None,
                 parallel: true,
                 schedule_count: 10,
+                schedule_duration: None,
             },
         },
     ];

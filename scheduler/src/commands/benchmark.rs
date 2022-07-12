@@ -37,6 +37,7 @@ pub fn benchmark(benchmark: Benchmark) -> Result<()> {
                         parallel: benchmark.parallel,
                         iter_since_best_reset: benchmark.iter_since_best_reset,
                         schedule_count: benchmark.number_of_schedules,
+                        schedule_duration: benchmark.scheduling_duration,
                     },
                 ),
             )

@@ -70,6 +70,9 @@ pub struct Benchmark {
     /// If applicable to algorithm, the amount of parallel schedules to evaluate
     #[clap(long, visible_alias = "nos", default_value_t = 10)]
     number_of_schedules: u32,
+    /// Amount of seconds after which to terminate the scheduling
+    #[clap(long, visible_alias = "time")]
+    scheduling_duration: Option<u64>,
 }
 
 #[derive(Debug, Parser)]
@@ -109,10 +112,13 @@ pub struct Schedule {
     /// Type of the scheduling algorithm to use
     #[clap(arg_enum, long, visible_alias = "algo", default_value_t = Algorithm::default())]
     algorithm: Algorithm,
-
     /// If applicable to algorithm, the amount of parallel schedules to evaluate
     #[clap(long, visible_alias = "nos", default_value_t = 10)]
     number_of_schedules: u32,
+
+    /// Amount of seconds after which to terminate the scheduling
+    #[clap(long, visible_alias = "time")]
+    scheduling_duration: Option<u64>,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, ArgEnum)]

@@ -31,6 +31,7 @@ pub fn schedule(schedule: Schedule) -> Result<()> {
                 parallel: schedule.parallel,
                 iter_since_best_reset: schedule.iter_since_best_reset,
                 schedule_count: schedule.number_of_schedules,
+                schedule_duration: schedule.scheduling_duration,
             },
         );
     }

@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use log::{debug, info, trace};
 use psp_lib_parser::structs::PspLibProblem;
 use rayon::prelude::*;
@@ -27,6 +29,8 @@ pub fn scheduler(psp: PspLibProblem, options: SchedulerOptions) -> OptimizedSche
 
     let execution_time = dag.compute_execution_time(&schedule, None);
     info!("execution_time: {execution_time}");
+
+    let start_time = Instant::now();
 
     let mut best_execution_time = execution_time;
     let mut best_execution_schedule = schedule.clone();
@@ -108,8 +112,15 @@ pub fn scheduler(psp: PspLibProblem, options: SchedulerOptions) -> OptimizedSche
         }
 
         if best_execution_time == lower_bound {
-            // Stop searching once we've found the "physically" best solution
+            info!("Stopping search as lower bound has been reached");
             break;
+        }
+
+        if let Some(schedule_duration) = options.schedule_duration {
+            if start_time.elapsed().as_secs() > schedule_duration {
+                info!("Stopping search as time limit has passed");
+                break;
+            }
         }
     }
 
