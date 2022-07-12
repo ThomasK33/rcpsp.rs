@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use psp_lib_parser::parse_psp_lib;
-use rcpsp::scheduler::{rayon, SchedulerOptions, custom};
+use rcpsp::scheduler::{custom, rayon, SchedulerOptions};
 
 struct BenchmarkSet<'a> {
     pub file: &'a str,
@@ -23,6 +23,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 swap_range: 30,
                 iter_since_best_reset: None,
                 parallel: false,
+                schedule_count: 10,
             },
         },
         BenchmarkSet {
@@ -34,6 +35,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 swap_range: 30,
                 iter_since_best_reset: None,
                 parallel: true,
+                schedule_count: 10,
             },
         },
         BenchmarkSet {
@@ -45,6 +47,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 swap_range: 60,
                 iter_since_best_reset: None,
                 parallel: false,
+                schedule_count: 10,
             },
         },
         BenchmarkSet {
@@ -56,6 +59,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 swap_range: 60,
                 iter_since_best_reset: None,
                 parallel: true,
+                schedule_count: 10,
             },
         },
         BenchmarkSet {
@@ -67,6 +71,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 swap_range: 60,
                 iter_since_best_reset: None,
                 parallel: false,
+                schedule_count: 10,
             },
         },
         BenchmarkSet {
@@ -78,6 +83,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 swap_range: 60,
                 iter_since_best_reset: None,
                 parallel: true,
+                schedule_count: 10,
             },
         },
     ];

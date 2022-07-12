@@ -3,7 +3,7 @@ use rand::thread_rng;
 
 use super::TabuList;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct ListRecord {
     /// Index, activity identification or something else. Maximal value is total number of activities-1.
     i: i32,
@@ -11,7 +11,7 @@ pub struct ListRecord {
     j: i32,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct SimpleTabuList {
     /// Current index at tabu list. (circular buffer)
     cur_idx: usize,

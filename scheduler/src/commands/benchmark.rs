@@ -1,6 +1,6 @@
 use anyhow::Result;
 use psp_lib_parser::parse_psp_lib;
-use rcpsp::scheduler::{custom, rayon};
+use rcpsp::scheduler::{custom, rayon, rayon_multi};
 use std::time::Instant;
 
 use crate::Benchmark;
@@ -15,6 +15,7 @@ pub fn benchmark(benchmark: Benchmark) -> Result<()> {
     let scheduler = match benchmark.algorithm {
         crate::Algorithm::Rayon => rayon::scheduler,
         crate::Algorithm::Custom => custom::scheduler,
+        crate::Algorithm::RayonMulti => rayon_multi::scheduler,
     };
 
     let scheduling_results: Vec<String> = folder
@@ -35,6 +36,7 @@ pub fn benchmark(benchmark: Benchmark) -> Result<()> {
                         swap_range: benchmark.swap_range,
                         parallel: benchmark.parallel,
                         iter_since_best_reset: benchmark.iter_since_best_reset,
+                        schedule_count: benchmark.number_of_schedules,
                     },
                 ),
             )

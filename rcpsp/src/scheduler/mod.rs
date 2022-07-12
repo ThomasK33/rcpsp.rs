@@ -1,5 +1,6 @@
 pub mod custom;
 pub mod rayon;
+pub mod rayon_multi;
 
 #[derive(Debug, Clone)]
 pub struct SchedulerOptions {
@@ -9,6 +10,7 @@ pub struct SchedulerOptions {
     pub swap_range: usize,
     pub parallel: bool,
     pub iter_since_best_reset: Option<u32>,
+    pub schedule_count: u32,
 }
 
 pub struct OptimizedSchedule {

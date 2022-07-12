@@ -3,7 +3,7 @@ use std::fs;
 use anyhow::Result;
 use log::trace;
 use psp_lib_parser::parse_psp_lib;
-use rcpsp::scheduler::{custom, rayon};
+use rcpsp::scheduler::{custom, rayon, rayon_multi};
 
 use crate::Schedule;
 
@@ -18,6 +18,7 @@ pub fn schedule(schedule: Schedule) -> Result<()> {
         let scheduler = match schedule.algorithm {
             crate::Algorithm::Rayon => rayon::scheduler,
             crate::Algorithm::Custom => custom::scheduler,
+            crate::Algorithm::RayonMulti => rayon_multi::scheduler,
         };
 
         scheduler(
@@ -29,6 +30,7 @@ pub fn schedule(schedule: Schedule) -> Result<()> {
                 swap_range: schedule.swap_range,
                 parallel: schedule.parallel,
                 iter_since_best_reset: schedule.iter_since_best_reset,
+                schedule_count: schedule.number_of_schedules,
             },
         );
     }

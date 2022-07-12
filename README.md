@@ -66,7 +66,13 @@ To run a release build of the scheduler, with LLVM optimizations on, one should:
 cargo run --release -- schedule ./examples/j30.sm/j3045_10.sm --swr 15 --tls 100 --misb 1500 --noi 3000 -p
 ```
 
-To run a release build of the scheduler using an alternative scheduling algorithm, with LLVM optimizations on, one should:
+To run a release build of the scheduler using a rayon-based multi-schedule scheduling algorithm, with LLVM optimizations on, one should:
+
+```bash
+cargo run --release -- schedule ./examples/j30.sm/j3045_10.sm --swr 15 --tls 100 --misb 1500 --noi 3000 -p --algo rayon-multi
+```
+
+To run a release build of the scheduler using a custom multi-threaded scheduling algorithm, with LLVM optimizations on, one should:
 
 ```bash
 cargo run --release -- schedule ./examples/j30.sm/j3045_10.sm --swr 15 --tls 100 --misb 1500 --noi 3000 -p --algo custom
@@ -76,6 +82,7 @@ One can evaluate the scheduler quality by running:
 
 ```bash
 cargo run --release -- benchmark ./examples/j30.sm ./j30_results.csv
+cargo run --release -- benchmark ./examples/j30.sm ./j30_results_rayon_multi.csv --algo rayon-multi
 cargo run --release -- benchmark ./examples/j30.sm ./j30_results_custom.csv --algo custom
 ```
 

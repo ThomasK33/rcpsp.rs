@@ -57,7 +57,7 @@ pub fn scheduler(psp: PspLibProblem, options: SchedulerOptions) -> OptimizedSche
             }
         }
 
-        let moves = dag.compute_reduced_neighborhood_moves(&schedule, options.swap_range as usize);
+        let moves = dag.compute_reduced_neighborhood_moves(&schedule, options.swap_range);
         trace!("moves: {moves:?}");
 
         // Perform swaps and after each swap reevaluate execution time

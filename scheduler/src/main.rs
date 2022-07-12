@@ -67,6 +67,9 @@ pub struct Benchmark {
     /// Type of the scheduling algorithm to use
     #[clap(arg_enum, long, visible_alias = "algo", default_value_t = Algorithm::Rayon)]
     algorithm: Algorithm,
+    /// If applicable to algorithm, the amount of parallel schedules to evaluate
+    #[clap(long, visible_alias = "nos", default_value_t = 10)]
+    number_of_schedules: u32,
 }
 
 #[derive(Debug, Parser)]
@@ -106,6 +109,10 @@ pub struct Schedule {
     /// Type of the scheduling algorithm to use
     #[clap(arg_enum, long, visible_alias = "algo", default_value_t = Algorithm::default())]
     algorithm: Algorithm,
+
+    /// If applicable to algorithm, the amount of parallel schedules to evaluate
+    #[clap(long, visible_alias = "nos", default_value_t = 10)]
+    number_of_schedules: u32,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, ArgEnum)]
@@ -118,9 +125,11 @@ pub enum Mode {
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, ArgEnum, Default)]
 pub enum Algorithm {
-    /// Rayon-based, single schedule search
+    /// Rayon-based, single-schedule search
     #[default]
     Rayon,
+    /// Rayon-based, multi-schedule search
+    RayonMulti,
     /// More sophisticated version of a parallel, multi schedule search
     /// using custom thread implementation
     Custom,
