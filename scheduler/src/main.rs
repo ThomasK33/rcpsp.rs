@@ -1,7 +1,7 @@
 #![forbid(unsafe_code)]
 use std::path::PathBuf;
 
-use clap::{ArgEnum, Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use clap_verbosity_flag::{InfoLevel, Verbosity};
 use log::{debug, error};
 
@@ -29,19 +29,19 @@ pub enum Commands {
 
 #[derive(Debug, Parser)]
 pub struct Graph {
-    #[clap(required = true, parse(from_os_str))]
+    #[clap(required = true)]
     psp_problem_file: PathBuf,
-    #[clap(required = true, parse(from_os_str))]
+    #[clap(required = true)]
     output: PathBuf,
 }
 
 #[derive(Debug, Parser)]
 pub struct Benchmark {
     /// Folder location containing a collection of PSP tasks
-    #[clap(parse(from_os_str))]
+    #[clap()]
     psp_problem_file_folder: PathBuf,
     /// Output file to write schedule results in CSV format to
-    #[clap(parse(from_os_str))]
+    #[clap()]
     output: PathBuf,
 
     /// Number of iterations after which the search process will be stopped.
@@ -65,7 +65,7 @@ pub struct Benchmark {
     #[clap(long, short = 'p', action, default_value_t = true)]
     parallel: bool,
     /// Type of the scheduling algorithm to use
-    #[clap(arg_enum, long, visible_alias = "algo", default_value_t = Algorithm::Rayon)]
+    #[clap(value_enum, long, visible_alias = "algo", default_value_t = Algorithm::Rayon)]
     algorithm: Algorithm,
     /// If applicable to algorithm, the amount of parallel schedules to evaluate
     #[clap(long, visible_alias = "nos", default_value_t = 10)]
@@ -78,7 +78,7 @@ pub struct Benchmark {
 #[derive(Debug, Parser)]
 pub struct Schedule {
     /// Instances data
-    #[clap(required = true, parse(from_os_str), min_values = 1)]
+    #[clap(required = true, num_args = 1..)]
     input_files: Vec<PathBuf>,
 
     /// Run scheduler multi-threaded
@@ -86,7 +86,7 @@ pub struct Schedule {
     parallel: bool,
 
     /// Type of the tabu list to be used
-    #[clap(arg_enum, long, visible_alias = "mode", default_value_t = Mode::Simple)]
+    #[clap(value_enum, long, visible_alias = "mode", default_value_t = Mode::Simple)]
     tabu_list_mode: Mode,
 
     /// Number of iterations after which the search process will be stopped.
@@ -110,7 +110,7 @@ pub struct Schedule {
     swap_range: usize,
 
     /// Type of the scheduling algorithm to use
-    #[clap(arg_enum, long, visible_alias = "algo", default_value_t = Algorithm::default())]
+    #[clap(value_enum, long, visible_alias = "algo", default_value_t = Algorithm::default())]
     algorithm: Algorithm,
     /// If applicable to algorithm, the amount of parallel schedules to evaluate
     #[clap(long, visible_alias = "nos", default_value_t = 10)]
@@ -121,7 +121,7 @@ pub struct Schedule {
     scheduling_duration: Option<u64>,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, ArgEnum)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, ValueEnum)]
 pub enum Mode {
     /// The simple version of the tabu list is used.
     Simple,
@@ -129,7 +129,7 @@ pub enum Mode {
     // Advanced,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, ArgEnum, Default)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, ValueEnum, Default)]
 pub enum Algorithm {
     /// Rayon-based, single-schedule search
     #[default]
