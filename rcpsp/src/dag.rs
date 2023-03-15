@@ -277,7 +277,7 @@ impl DAG {
             });
 
             let mut last_window = last_window.to_vec();
-            last_window.append(&mut vec![0; swap_range as usize]);
+            last_window.append(&mut vec![0; swap_range]);
 
             let last_window_moves = last_window.windows(swap_range).map_while(|window| {
                 if let Some(first) = window.first() {

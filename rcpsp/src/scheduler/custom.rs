@@ -48,7 +48,7 @@ pub fn scheduler(psp: PspLibProblem, mut options: SchedulerOptions) -> Optimized
     let diversification_iterations = 20;
 
     //==========initialization
-    let dag = DAG::new(psp, options.swap_range as usize);
+    let dag = DAG::new(psp, options.swap_range);
 
     let lower_bound = dag.compute_lower_bound(false);
     info!("lower_bound: {lower_bound:?}");
@@ -64,7 +64,6 @@ pub fn scheduler(psp: PspLibProblem, mut options: SchedulerOptions) -> Optimized
     let mut schedules: Vec<Vec<u8>> = vec![schedule];
 
     let mut extra_initial_solutions: Vec<Vec<u8>> = (0..schedule_count - 1)
-        .into_iter()
         .map(|_| {
             job_execution_ranks
                 .clone()

@@ -84,7 +84,7 @@ pub fn scheduler(psp: PspLibProblem, options: SchedulerOptions) -> OptimizedSche
 
         // Perform swaps and after each swap reevaluate execution time
         let map_op = |schedule: Vec<u8>, (job_a, job_b)| {
-            let execution_time = dag.compute_execution_time(&*schedule, Some((job_a, job_b)));
+            let execution_time = dag.compute_execution_time(&schedule, Some((job_a, job_b)));
 
             (execution_time, (job_a, job_b))
         };
@@ -151,7 +151,7 @@ pub fn scheduler(psp: PspLibProblem, options: SchedulerOptions) -> OptimizedSche
         for (rated_moves, interim_schedule) in rated_moves_and_schedule {
             let local_best_duration = interim_schedule.best_duration;
 
-            if let Some(&(duration, (i, j))) = rated_moves.get(0) {
+            if let Some(&(duration, (i, j))) = rated_moves.first() {
                 let a = interim_schedule
                     .schedule
                     .iter()
